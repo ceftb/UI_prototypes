@@ -3,8 +3,10 @@ import sys
 from appJar import gui
 
 sys.path.append(".")
+
 from netxCanvas.canvas import netxCanvas
 from netxCanvas.style import NodeClass
+
 
 app = gui("Graph Testing")
 
@@ -26,6 +28,7 @@ G.add_edge(0,3)
 G.node[0]['circle'] = True
 G.node[1]['color'] = 'blue'
 
+app.setGeometry(600, 600)
 app.addCanvas("Graph!")
 gc_master = app.getCanvas("Graph!")
 
