@@ -2,6 +2,7 @@
 from appJar import gui
 
 acn=0
+tcn=0
 
 actors=dict()
 behaviors=dict()
@@ -11,6 +12,8 @@ actions=dict()
 
 sbuttons=dict()
 slabels=dict()
+
+bstate = "start" # state of current behavior start, (waitd, wait) or (whene, when) or actor, actor, action, method, emit, done
 
 # handle button events
 def press(button):
@@ -36,11 +39,16 @@ def tbFunc(button):
     pass
 
 def Bentry(button):
+    global tcn
+
     pressed = button
     text = app.getTextArea("behavior")        
     delim = ""
-    if (not text.endswith(" ") and text != ""):
+    if (not text.endswith(" ") and not text.endswith("\n") and text != ""):
         delim=" "
+    if (button == "wait t"):
+        button += str(tcn)
+        tcn = tcn + 1
     app.setTextArea("behavior", delim+button, True, True)
     pass
 
@@ -54,11 +62,19 @@ def Centry(button):
     pass
 
 def addSuggestions(evtype, pb):
+    global actors
+
     app.openLabelFrame("Suggestions")
     if evtype == "actors_only":
         for a in actors:
             if a != "":
                 print "add actor ",a
+                sbuttons[a] = 1
+                app.addButton(a, pb)
+    elif evtype == "actions_only":
+        for a in actions:
+            if a != "":
+                print "add action ",a
                 sbuttons[a] = 1
                 app.addButton(a, pb)
     elif evtype == "events_only":
@@ -67,6 +83,7 @@ def addSuggestions(evtype, pb):
                 sbuttons[e] = 1
                 app.addButton(e, pb)
     elif evtype == "behaviors_enter":
+        print "Actors ",len(actors)
         for a in actors:
             if a != "":
                 print "add actor ",a
@@ -76,9 +93,12 @@ def addSuggestions(evtype, pb):
             eline="when "+e
             sbuttons[eline] = 1
             app.addButton(eline, pb)
-        for s in ["wait 1","wait 10", "wait 60"]:
+        for s in ["wait t"]:
             sbuttons[s] = 1
             app.addButton(s, pb)
+    elif evtype == "emit":
+        sbuttons["emit"] = 1
+        app.addButton("emit", pb)
     else: # it was text to be displayed as label
         app.addLabel("tl",evtype)
         slabels["tl"] = 1
@@ -94,7 +114,7 @@ def processConstraints():
             app.removeLabel(t)
         slabels.clear()
         text = app.getTextArea("constraints")
-        cs = text.split(" ")
+        cs = text.strip().split(" ")
         if cs[-1] in ["num", "os","nodetype", "interfaces", "location", "link","lan"]:
             addSuggestions("actors_only", Centry)
         elif len(cs) >= 2:
@@ -118,7 +138,71 @@ def processConstraints():
                 sbuttons[l]=1
         app.stopLabelFrame()
 
+def transitionBstate(ll):
+    global acn
+    global bstate
+
+    #print "Entering w state ",bstate, "line ",ll
+    if (bstate == "start" or bstate == "done"):
+        if (ll.strip() == ""):
+            bstate = "start"
+        elif (ll.strip() == "wait"):
+            bstate = "waitd"
+        elif (ll.strip() == "when"):
+            bstate = "whene"
+        elif (ll.strip() in actors):
+            bstate = "actor"
+        elif (ll.endswith(" ")): # new actor that someone added
+            actors[ll.strip()] = 1 
+            bstate = "actor"
+            text = app.getTextArea("actor")        
+            delim = ""
+            if (not text.endswith("\n") and text != ""):
+                    delim="\n"
+            app.setTextArea("actor", delim+ll.strip(), True, True)
+            if ("actor"+str(acn)) in actors:
+                acn=acn+1
+    elif (bstate == "waitd"):
+        if(ll.endswith(" ")):
+            items = ll.split(" ")
+            print "came here len",len(items)
+            if (len(items) >= 2):
+                bstate = "wait"
+    elif (bstate == "whene"):
+        if ll.endswith(" "):
+            items = ll.split(" ")
+            if (len(items) == 2):
+                bstate = "when"
+    elif (bstate == "wait" or bstate == "when"):
+        items = ll.split(" ")
+        iteme = ll.strip().split(" ")
+        leni = len(iteme)
+        if (bstate == "wait" and ll.startswith("when")):
+            adjust = 4
+        elif (bstate == "wait" or bstate == "when"):
+            adjust = 2
+        if leni - adjust == 1:
+            print " last item ",iteme[adjust]
+            if (iteme[adjust] in actors):
+                bstate = "actor"
+            elif (iteme[adjust] == "wait"):
+                bstate = "waitd"
+            elif ll.endswith(" "): # new actor that someone added
+                actors[iteme[-1]] = 1 
+                bstate = "actor"
+                text = app.getTextArea("actor")        
+                delim = ""
+                if (not text.endswith("\n") and text != ""):
+                    delim="\n"
+                app.setTextArea("actor", delim+iteme[-1], True, True)
+                if ("actor"+str(acn)) in actors:
+                    acn=acn+1
+    return bstate
+
 def processBehavior():
+        global bstate
+        global acn
+
         print "Entered behavior"
         app.openLabelFrame("Suggestions")
         for t in sbuttons:
@@ -144,19 +228,34 @@ def processBehavior():
                 if (prev == "emit"):
                     events[item] = 1
                 prev = item
-        print "Len ", len(bhs)
-        if len(bhs) >= 1:
-            if bhs[-1] == "when":
+        # Go through last behavior line to see what is the current state
+        # start (waitd, wait) or (whene, when) or actor, actor, action, method, emit, done
+        ll = bhs[-1]
+        bstate = transitionBstate(ll)
+        print "Bstate ",bstate
+            
+        chs = bhs[-1].strip().split(" ")
+        print "Len ", len(chs)
+        if len(chs) >= 1:
+            if chs[-1] == "when":
                 addSuggestions("events_only", Bentry)
-            elif bhs[-1] in actors:
+            elif chs[-1] in actors:
+                print "Found actor ",chs[-1]
                 addSuggestions("enter action", Bentry)
-            elif bhs[-1] in events:
+                addSuggestions("actions_only", Bentry)
+            elif chs[-1] in events:
                 addSuggestions("actors_only", Bentry)
-            elif len(bhs) >= 2:
-                if (bhs[-2] == "emit" and bhs[-1] in events):
+            elif chs[-1] == "emit":
+                addSuggestions("enter event name", Bentry)
+            elif len(chs) >= 2:
+                if (chs[-2] == "emit" and chs[-1] in events):
                     addSuggestions("behaviors_enter", Bentry)
-                elif (bhs[-1] in actions):
+                elif (chs[-2] in actors and text.endswith(" ")):
+                    actions[chs[-1]] = 1
                     addSuggestions("enter method", Bentry)
+                elif len(chs) >= 3 and (chs[-3] in actors):
+                    addSuggestions("emit", Bentry)
+                    addSuggestions("behaviors_enter", Bentry)
                 else: 
                     addSuggestions("behaviors_enter", Bentry)
             else:
@@ -206,11 +305,15 @@ def constraintsleft(widget):
 
 def left(widget):
     print widget
+    global actors
+    global events
+
     if (widget == "actor"):
+        actors=dict()
         text = app.getTextArea("actor")
         roles = text.split("\n")
         for r in roles:
-            if r not in actors:
+            if r not in actors and r.strip() != "":
                 actors[r] = 1
                 print "Added actor ", r
     if (widget == "behavior"):
