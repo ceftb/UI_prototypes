@@ -60,6 +60,15 @@ class GraphCanvas(tk.Canvas):
         self.center_on_node(home_node or graph.nodes()[0])
         
         # Add bindings for clicking.
+        self.tag_bind('node', '<ButtonPress-1>', self.onNodeButtonPress)
+        self.tag_bind('node', '<ButtonRelease-1>', self.onNodeButtonRelease)
+        self.tag_bind('node', '<B1-Motion>', self.onNodeMotion)
+        self.tag_bind('edge', '<Button-1>', self.onEdgeClick)
+        self.tag_bind('edge', '<Button-3>', self.onEdgeRightClick)
+        self.bind('<ButtonPress-1>', self.onPanStart)
+        self.bind('<ButtonRelease-1>', self.onPanEnd)
+        self.bind('<B1-Motion>', self.onPanMotion)
+        self.bind_all('<MouseWheel>', self.onZoom)
 
     def _draw_edge(self, u, v):
         try:
@@ -218,7 +227,6 @@ class GraphCanvas(tk.Canvas):
         self.winfo_toplevel().config(cursor='fleur')
     
     def onPanMotion(self, event):
-        print("Pan motion")
         delta_x = event.x - self._pan_data[0]
         delta_y = event.y - self._pan_data[1]
         self.move(tk.ALL, delta_x, delta_y)
