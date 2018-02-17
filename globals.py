@@ -1,4 +1,6 @@
 app = None
+bdg_canvas = None
+
 acn=0
 tcn=0
 

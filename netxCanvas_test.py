@@ -26,13 +26,13 @@ G.add_edge(0,2)
 G.add_edge(0,3)
 
 G.node[0]['circle'] = True
-G.node[1]['color'] = 'blue'
+G.node[1]['color'] = 'green'
 
-app.setGeometry(600, 600)
+app.setGeometry(600, 300)
 app.addCanvas("Graph!")
 gc_master = app.getCanvas("Graph!")
 
-gc = netxCanvas(G, master=gc_master, style=CustomNodeStyle)
+gc = netxCanvas(G, master=gc_master, style=CustomNodeStyle, width=300, height=500)
 
 app.go()
 

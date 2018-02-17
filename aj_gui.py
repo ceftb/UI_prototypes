@@ -1,11 +1,27 @@
+import inspect as ins
+import pprint
 # import the library
+try:
+    # Python 3
+    import tkinter as tk
+    import tkinter.messagebox as tkm
+    import tkinter.simpledialog as tkd
+except ImportError:
+    # Python 2
+    import Tkinter as tk
+    import tkMessageBox as tkm
+    import tkSimpleDialog as tkd
+
+
 from appJar import gui
 import re
 from HighLevelBehaviorLanguage.hlb import *
+from dependencyGraph.dg import dependencyGraphHandler
 import globals
 
 # create a GUI variable and assign our app var
-globals.app = gui("Experiment","800x660")
+globals.app = gui("Experiment","800x600")
+globals.app.setResizable(canResize=True)
 globals.app.setBg("white")
 globals.app.setFont(18)
 globals.app.setSticky("news")
@@ -18,7 +34,9 @@ tools = ["ACTOR", "BEHAVIOR", "CONSTRAINT"]
 
 # XXX TODO: Clean up and add more structure here.
 
-globals.app.startTabbedFrame("TabbedArea")
+tabbed_frame = globals.app.startTabbedFrame("TabbedArea")
+
+
 ## Tab1
 globals.app.startTab("HLB")
 globals.app.startLabelFrame("Actors", 0,0)
@@ -63,6 +81,14 @@ globals.app.stopTab()
 
 ## TAB 3
 globals.app.startTab("Behavior Dependency Graph")
+globals.bdg_canvas = globals.app.addCanvas("Behavior Dependency Graph")
+init_width = int(globals.app.appWindow.winfo_screenwidth()*.75)
+init_height = int(globals.app.appWindow.winfo_screenheight()*.75)
+globals.bdg_canvas.config(width=init_width,height=init_height)
+print("Width of GUI: %d" % globals.app.appWindow.winfo_screenwidth())
+print("Requesting canvas width of %d" % init_width)
+bdg_handler = dependencyGraphHandler(globals.bdg_canvas, width=init_width, height=init_height)
+print("Width of new canvas: %d" % globals.bdg_canvas.winfo_reqwidth())
 globals.app.stopTab()
 
 ## TAB 4
@@ -70,6 +96,20 @@ globals.app.startTab("Topology")
 globals.app.stopTab()
 
 globals.app.stopTabbedFrame()
+
+# XXX TODO: Not sure why working with appjar 
+# doesn't give us correct event or winfo or canvasx/y coordinates.
+# Appears to offset us by the height of the tab frame? 
+# Which we need to get after creating full frame area.
+ta = globals.app.widgetManager.get(globals.app.Widgets.TabbedFrame, "TabbedArea")
+tabbedHeight = ta.tabContainer.winfo_height()
+bdg_handler.setoffsets(yoffset=tabbedHeight)
+
+
+print("INFO1")
+ta = globals.app.widgetManager.get(globals.app.Widgets.TabbedFrame, "TabbedArea")
+print(ta.tabContainer.winfo_height())
+print("....")
 
 # start the GUI
 globals.app.go()

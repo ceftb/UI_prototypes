@@ -30,16 +30,22 @@ def flatten(l):
             yield el
 
 class netxCanvas():
-    def __init__(self, graph, master=None, style=None, **kwargs):
-        self.canvas = GraphCanvas(graph, master=master, NodeClass=style, **kwargs)
+    def __init__(self, graph, master=None, style=None, width=0, height=0, xoffset=0, yoffset=0, **kwargs):
+        self.canvas = GraphCanvas(graph, master=master, width=width, height=height, NodeClass=style, **kwargs)
         self.canvas.grid(row=0, column=0, sticky='NESW')
-
-
+        
 class GraphCanvas(tk.Canvas):
-    def __init__(self, graph, master=None, **kwargs):
+    xoffset = 0
+    yoffset = 0
+        
+    def __init__(self, graph, master=None, width=0, height=0, xoffset=0, yoffset=0, **kwargs):
         self.G = graph
         self.dispG = nx.MultiGraph()
-        
+        self.initkwargs = kwargs
+        self.master = master
+        self.xoffset = xoffset
+        self.yoffset = yoffset
+                
         self._drag_data = {'x': 0, 'y': 0, 'item': None}
         self._pan_data  = (None, None)
         
@@ -53,12 +59,21 @@ class GraphCanvas(tk.Canvas):
         self._NodeClass = kwargs.pop('NodeClass', NodeClass)
         self._EdgeClass = kwargs.pop('EdgeClass', EdgeClass)
         
-        tk.Canvas.__init__(self, master=master, **kwargs)
+        if width != 0 and height != 0:
+            print("Making canvas size: %dx%d" % (width, height))
+            tk.Canvas.__init__(self, master=master, width=width, height=height, **kwargs)
+        else:
+            print("Given %d and %d for width and height" % (width, height))
+            tk.Canvas.__init__(self, master=master, **kwargs)
+            
+        # Are our coordinates off?
+        self.x0 = self.master.winfo_rootx()
+        self.y0 = self.winfo_rooty()
+        print("(0,0) at (%d,%d)" % (self.x0, self.y0))
         
         self._plot_graph(graph)
         
         self.center_on_node(home_node or graph.nodes()[0])
-        
         # Add bindings for clicking.
         self.tag_bind('node', '<ButtonPress-1>', self.onNodeButtonPress)
         self.tag_bind('node', '<ButtonRelease-1>', self.onNodeButtonRelease)
@@ -69,6 +84,20 @@ class GraphCanvas(tk.Canvas):
         self.bind('<ButtonRelease-1>', self.onPanEnd)
         self.bind('<B1-Motion>', self.onPanMotion)
         self.bind_all('<MouseWheel>', self.onZoom)
+        #self.bind("<Configure>", self.configure)
+
+    def configure(self, event):
+        print("Configure called.")
+        self.delete("all")
+        w, h = event.width, event.height
+        graph = self.G
+        home_node = self.initkwargs.pop('home_node', None)
+        if home_node:
+            levels = self.initkwargs.pop('levels', 1)
+            graph = self._neighbors(home_node, levels=levels, graph=graph)
+        self._plot_graph(graph)
+        self.center_on_node(home_node or graph.nodes()[0])
+        
 
     def _draw_edge(self, u, v):
         try:
@@ -95,7 +124,7 @@ class GraphCanvas(tk.Canvas):
         if len(edges) == 1:
             m = 0
         else:
-            m = 10
+            m = 50
         
         for key, data in edges.items():
             estyle = self._EdgeClass(data)
@@ -106,7 +135,7 @@ class GraphCanvas(tk.Canvas):
             else:
                 G_id = (u, v)
             
-            self.dispG.add_edge(fm_disp, to_disp, key, dataG_id=G_id, dispG_fm=fm_disp, token=estyle, m=m)
+            self.dispG.add_edge(fm_disp, to_disp, key, G_id=G_id, dispG_fm=fm_disp, token=estyle, m=m)
             
             x1,y1 = self._node_center(fm_disp)
             x2,y2 = self._node_center(to_disp)
@@ -140,11 +169,19 @@ class GraphCanvas(tk.Canvas):
         return id
     
     def _get_id(self, event, tag='node'):
-        # for item in self.find_overlapping(event.x-1, event.y-1, event.x+1, event.y+1):
-        for item in self.find_overlapping(self.canvasx(event.x-1), self.canvasy(event.y-1), self.canvasx(event.x+1), self.canvasy(event.y+1)):
+        # XXX TODO: Not sure why working with appjar 
+        # doesn't give us correct event or winfo or canvasx/y coordinates.
+        # Appears to offset us by the height of the tab frame?
+        print("Getting ID for event at %d,%d (canvas event %d,%d). Offsets %d,%d" % (event.x,event.y,event.widget.canvasx(event.x),event.widget.canvasy(event.y), self.xoffset, self.yoffset))
+        for item in self.find_overlapping(event.x-self.xoffset-5, event.y-self.yoffset-5, event.x-self.xoffset+5, event.y-self.yoffset+5):
+            print("================>>>>>>>>> FOUND CANVAS ITEM <<<<<<<<<<<<<<<< =================")
+            print(item)
+            print(self.gettags(item))
             if tag in self.gettags(item):
                 return item
-        raise Exception('No Item Found')
+        print("Found no matching item")
+        return None
+        #raise Exception('No Item Found')
     
     def _node_center(self, item_id):
         b = self.bbox(item_id)
@@ -181,9 +218,10 @@ class GraphCanvas(tk.Canvas):
             non_blocked = set(self.G.nodes()) - neighbors
             non_blocked = [[a,] for a in non_blocked]
             
-            partitiions = blocks + non_blocked
+            partitions = blocks + non_blocked
             
-            B = nx.blockmodel(graph, partitions)
+            #B = nx.blockmodel(graph, partitions)
+            B = nx.quotient_graph(graph, partitions)
             
             num_blocks = len(blocks)
             for fm_node, to_node in zip(range(num_blocks), range(1, num_blocks -1)):
@@ -223,7 +261,8 @@ class GraphCanvas(tk.Canvas):
     def onPanStart(self, event):
         print("Pan start")
         # Window or canvas?
-        self._pan_data = (self.canvasx(event.x), self.canvasy(event.y))
+        # self._pan_data = (self.canvasx(event.x), self.canvasy(event.y))
+        self._pan_data = (event.x, event.y)
         self.winfo_toplevel().config(cursor='fleur')
     
     def onPanMotion(self, event):
@@ -268,13 +307,16 @@ class GraphCanvas(tk.Canvas):
     def onNodeButtonPress(self, event):
         print("Node button press")
         item = self._get_id(event)
-        self._drag_data['item'] = item
-        self._drag_data['x'] = self.canvasx(event.x)
-        self._drag_data['y'] = self.canvasy(event.y)
+        if item != None:
+            self._drag_data['item'] = item
+            #self._drag_data['x'] = self.canvasx(event.x)
+            #self._drag_data['y'] = self.canvasy(event.y)
+            self._drag_data['x'] = event.x
+            self._drag_data['y'] = event.y
         
-        G_id = self.dispG.node[item]['G_id']
+            G_id = self.dispG.node[item]['G_id']
         
-        self.onNodeSelected(G_id, self.G.node[G_id])
+            self.onNodeSelected(G_id, self.G.node[G_id])
     
     def onNodeSelected(self, node_name, node_data):
         pass
@@ -291,13 +333,13 @@ class GraphCanvas(tk.Canvas):
         if self._drag_data['item'] is None:
             return
         
-        delta_x = self.canvasx(event.x) - self._drag_data['x']
-        delta_y = self.canvasy(event.y) - self._drag_data['y']
+        delta_x = event.x - self._drag_data['x']
+        delta_y = event.y - self._drag_data['y']
         
         self.move(self._drag_data['item'], delta_x, delta_y)
         
-        self._drag_data['x'] = self.canvasx(event.x)
-        self._drag_data['y'] = self.canvasy(event.y)
+        self._drag_data['x'] = event.x
+        self._drag_data['y'] = event.y
         
         # Redraw
         from_node = self._drag_data['item']
@@ -340,20 +382,23 @@ class GraphCanvas(tk.Canvas):
         item.mark()
     
     def center_on_node(self, data_node):
+        print("CENTERED ON NODE")
         try:
             disp_node = self._find_disp_node(data_node)
         except ValueError as e:
             tkm.showerror("Unable to find node", str(e))
+            print("Unable to find center node?")
             return
         x,y = self.coords(self.dispG.node[disp_node]['token_id'])
         
-        #w = self.winfo_width()/2
-        #h = self.winfo_height()/2
-        w = int(self.canvas['width'])/2
-        h = int(self.canvas['height'])/2
-        #if w == 0:
-        #    w = int(self['width'])/2
-        #    h = int(self['height'])/2
+        w = self.winfo_width()/2
+        h = self.winfo_height()/2
+        #w = int(self.canvas['width'])/2
+        #h = int(self.canvas['height'])/2
+        if w == 0:
+            w = int(self['width'])/2
+            h = int(self['height'])/2
+        print("Measured canvas w/h: %dx%d" % (w*2,h*2))
         delta_x = w - x
         delta_y = h - y
         
@@ -483,7 +528,8 @@ class GraphCanvas(tk.Canvas):
         scale = min(self.winfo_width(), self.winfo_height())
         if scale == 1:
             scale = int(min(self['width'], self['height']))
-        scale -= 50
+        scale = scale/100
+        #scale -= 50
         if len(graph) > 1:
             layout = self.create_layout(graph, scale=scale, min_distance=50)
             for n in graph.nodes():
@@ -553,10 +599,10 @@ class GraphCanvas(tk.Canvas):
                     break
                 if show_flag == False:
                     raise NodeFiltered
+            print("Data node '%s' is not currently displayed"%data_node)
             raise ValueError("Data Node '%s' is not currently displayed"%data_node)
         elif len(disp_node) != 1:
             raise AssertionError("Data node '%s' is displayed multiple times" % data_node)
-        
         return disp_node[0]
     
     def create_layout(self, G, pos=None, fixed=None, scale=1.0, min_distance=None):
