@@ -1,3 +1,4 @@
+import re
 import sys
 sys.path.append('../')
 import globals
@@ -88,8 +89,8 @@ def addSuggestions(evtype, pb):
         globals.sbuttons["emit"] = 1
         globals.app.addButton("emit", pb)
     else: # it was text to be displayed as label
-        globals.app.addLabel("tl",evtype)
-        globals.slabels["tl"] = 1
+        globals.app.addLabel(evtype,evtype)
+        globals.slabels[evtype] = 1
     globals.app.stopLabelFrame()
 
 def processConstraints():
@@ -285,7 +286,7 @@ def processBehavior():
                 addactor(item)
             addSuggestions("enter action", Bentry)
             addSuggestions("actions_only", Bentry)
-            addSuggestions("globals.actors_only", Bentry)
+            addSuggestions("actors_only", Bentry)
         elif(globals.bstate == "action" or globals.bstate == "method" or globals.bstate == "naction" or globals.bstate == "nmethod"):
             items = ll.strip().split(" ")
             if (globals.bstate == "naction"):

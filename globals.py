@@ -6,6 +6,7 @@ topo_handler = None
 
 acn=0
 tcn=0
+al=0
 
 actors=dict()
 behaviors=dict()
