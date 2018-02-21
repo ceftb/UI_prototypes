@@ -31,25 +31,28 @@ class topoStyle(NodeClass):
         else:
             self.create_rectangle(0,0,10,10, **marker_options)
 
-class topoHandler():
+class topoHandler(GraphCanvas, object):
     def __init__(self, canvas, width=0, height=0, **kwargs):
-        self.G = nx.Graph()
-        self.G.add_edge(0,1)
-        self.G.add_edge(0,2)
-        self.G.add_edge(0,3)
+        G = nx.Graph()
 
-        self.G.node[0]['circle'] = True
-        self.G.node[0]['color'] = 'green'
-        self.G.node[1]['color'] = 'blue'
+        G.add_edge(0,1)
+        G.add_edge(0,2)
+        G.add_edge(0,3)
 
-        #self.gc = netxCanvas(self.G, master=canvas,  style=dgStyle, width=width, height=height)
-        self.gc = GraphCanvas(self.G, master=canvas, width=width, height=height, NodeClass=topoStyle, **kwargs)
-        #self.gc.grid(row=0, column=0, sticky='NESW')
-        self.gc.pack()
+        G.node[0]['circle'] = True
+        G.node[0]['color'] = 'green'
+        G.node[1]['color'] = 'blue'
+        try:
+            # Python 3
+            super().__init__(G, master=canvas, width=width, height=height, NodeClass=topoStyle, **kwargs)
+        except TypeError:
+            # Python 2
+            super(topoHandler, self).__init__(G, master=canvas, width=width, height=height, NodeClass=topoStyle, **kwargs)
+        self.pack()
     
     def setoffsets(self, xoffset=0, yoffset=0):
-        self.gc.xoffset = xoffset
-        self.gc.yoffset = yoffset
+        self.xoffset = xoffset
+        self.yoffset = yoffset
 
     def add_entity(self, name):
         num_nodes = len(self.G)
@@ -59,7 +62,7 @@ class topoHandler():
         self.G.add_node(num_nodes, label=name)
         self.G.add_edge(0, num_nodes)
 
-        self.gc._plot_additional(self.G.node[num_nodes])
-        self.gc._plot_additional([num_nodes])
-        self.gc.refresh()
+        self._plot_additional(self.G.node[num_nodes])
+        self._plot_additional([num_nodes])
+        self.refresh()
         

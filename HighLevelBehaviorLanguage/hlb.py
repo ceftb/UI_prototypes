@@ -50,13 +50,13 @@ def addSuggestions(evtype, pb):
     if evtype == "actors_only":
         for a in globals.actors:
             if a != "":
-                print "add actor ",a
+                print("add actor %s" % a)
                 globals.sbuttons[a] = 1
                 globals.app.addButton(a, pb)
     elif evtype == "actions_only":
         for a in globals.actions:
             if a != "":
-                print "add action ",a
+                print("add action %s" % a)
                 globals.sbuttons[a] = 1
                 globals.app.addButton(a, pb)
     elif evtype == "methods_only":
@@ -70,10 +70,10 @@ def addSuggestions(evtype, pb):
                 globals.sbuttons[e] = 1
                 globals.app.addButton(e, pb)
     elif evtype == "behaviors_enter" or evtype == "when_enter":
-        print "Actors ",len(globals.actors)
+        print("Actors %d" % len(globals.actors))
         for a in globals.actors:
             if a != "":
-                print "add actor ",a
+                print("add actor %s" % a)
                 globals.sbuttons[a] = 1
                 globals.app.addButton(a, pb)
         if evtype == "behaviors_enter":
@@ -93,7 +93,7 @@ def addSuggestions(evtype, pb):
     globals.app.stopLabelFrame()
 
 def processConstraints():
-        print "Entered constraints"
+        print("Entered constraints")
         globals.app.openLabelFrame("Suggestions")
         for t in globals.sbuttons:
             globals.app.removeButton(t)
@@ -157,7 +157,7 @@ def transitionBstate(ll):
         j += 1
 
     diff = len(items) - fp - 1
-    print "fwh ",fwh, " fwa ",fwa," fa ",fa, " fe ",fe," fp ",fp, " diff ",diff
+    #print "fwh ",fwh, " fwa ",fwa," fa ",fa, " fe ",fe," fp ",fp, " diff ",diff
     # now check what's the last item
     if (fwh == 1 and fwa == 0 and fa == 0):
         if (items[-1] != "when"):
@@ -222,7 +222,7 @@ def addactor(item):
     
 
 def processBehavior():
-        print "Entered behavior"
+        print("Entered behavior")
         globals.app.openLabelFrame("Suggestions")
         for t in globals.sbuttons:
             globals.app.removeButton(t)
@@ -265,7 +265,7 @@ def processBehavior():
         # Go through last behavior line to see what is the current state
         # start (waitd, wait) or (whene, when) or actor, actor, action, method, emit, done
         globals.bstate = transitionBstate(ll)
-        print "State ",globals.bstate
+        print("State %s" % (globals.bstate))
 
         if (globals.bstate == "start"):
             addSuggestions("behaviors_enter", Bentry)
@@ -330,13 +330,13 @@ def processBehavior():
         globals.app.stopLabelFrame()
 
 def regenerateSuggestions(evtype):
-    print "Event ",evtype
+    print("Event %s" % evtype)
     for t in globals.sbuttons:
-        print "Button ",t
+        print("Button %s" %t)
     if evtype == "behaviors_enter":
         processBehavior()
     elif evtype == "globals.actors_enter":
-        print "Entered actors"
+        print("Entered actors")
         globals.app.openLabelFrame("Suggestions")
         for t in globals.sbuttons:
             globals.app.removeButton(t)
@@ -367,7 +367,7 @@ def constraintsleft(widget):
     left("constraints")
 
 def left(widget):
-    print widget
+    print(widget)
 
     if (widget == "actor"):
         globals.actors=dict()
@@ -401,7 +401,7 @@ def left(widget):
                 prev = item
 
 def entered(widget):
-    print widget
+    print(widget)
     if (widget == "actor"):
         regenerateSuggestions("globals.actors_enter")        
     elif (widget == "behavior"):
