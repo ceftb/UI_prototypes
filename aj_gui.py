@@ -107,7 +107,7 @@ globals.app.stopTabbedFrame()
 # doesn't give us correct event or winfo or canvasx/y coordinates.
 # Appears to offset us by the height of the tab frame? 
 # Which we need to get after creating full frame area.
-ta = gknlobals.app.widgetManager.get(globals.app.Widgets.TabbedFrame, "TabbedArea")
+ta = globals.app.widgetManager.get(globals.app.Widgets.TabbedFrame, "TabbedArea")
 tabbedHeight = ta.tabContainer.winfo_height()
 globals.bdg_handler.setoffsets(yoffset=tabbedHeight)
 globals.topo_handler.setoffsets(yoffset=tabbedHeight)
