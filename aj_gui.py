@@ -17,6 +17,7 @@ from appJar import gui
 import re
 from HighLevelBehaviorLanguage.hlb import *
 from dependencyGraph.dg import dependencyGraphHandler
+from topology.topo import topoHandler
 import globals
 
 # create a GUI variable and assign our app var
@@ -87,12 +88,17 @@ init_height = int(globals.app.appWindow.winfo_screenheight()*.75)
 globals.bdg_canvas.config(width=init_width,height=init_height)
 print("Width of GUI: %d" % globals.app.appWindow.winfo_screenwidth())
 print("Requesting canvas width of %d" % init_width)
-bdg_handler = dependencyGraphHandler(globals.bdg_canvas, width=init_width, height=init_height)
+globals.bdg_handler = dependencyGraphHandler(globals.bdg_canvas, width=init_width, height=init_height)
 print("Width of new canvas: %d" % globals.bdg_canvas.winfo_reqwidth())
 globals.app.stopTab()
 
 ## TAB 4
 globals.app.startTab("Topology")
+globals.app.topo_canvas = globals.app.addCanvas("Topology")
+init_width = int(globals.app.appWindow.winfo_screenwidth()*.75)
+init_height = int(globals.app.appWindow.winfo_screenheight()*.75)
+globals.app.topo_canvas.config(width=init_width,height=init_height)
+globals.topo_handler = topoHandler(globals.app.topo_canvas, width=init_width, height=init_height)
 globals.app.stopTab()
 
 globals.app.stopTabbedFrame()
@@ -101,15 +107,10 @@ globals.app.stopTabbedFrame()
 # doesn't give us correct event or winfo or canvasx/y coordinates.
 # Appears to offset us by the height of the tab frame? 
 # Which we need to get after creating full frame area.
-ta = globals.app.widgetManager.get(globals.app.Widgets.TabbedFrame, "TabbedArea")
+ta = gknlobals.app.widgetManager.get(globals.app.Widgets.TabbedFrame, "TabbedArea")
 tabbedHeight = ta.tabContainer.winfo_height()
-bdg_handler.setoffsets(yoffset=tabbedHeight)
-
-
-print("INFO1")
-ta = globals.app.widgetManager.get(globals.app.Widgets.TabbedFrame, "TabbedArea")
-print(ta.tabContainer.winfo_height())
-print("....")
+globals.bdg_handler.setoffsets(yoffset=tabbedHeight)
+globals.topo_handler.setoffsets(yoffset=tabbedHeight)
 
 # start the GUI
 globals.app.go()

@@ -54,7 +54,7 @@ def addSuggestions(evtype, pb):
                 globals.sbuttons[a] = 1
                 globals.app.addButton(a, pb)
     elif evtype == "actions_only":
-        for a in actions:
+        for a in globals.actions:
             if a != "":
                 print "add action ",a
                 globals.sbuttons[a] = 1
@@ -218,6 +218,8 @@ def addactor(item):
     if (not text.endswith("\n") and text != ""):
         delim="\n"
     globals.app.setTextArea("actor", delim+item, True, True)
+    
+    
 
 def processBehavior():
         print "Entered behavior"
@@ -374,7 +376,11 @@ def left(widget):
         for r in roles:
             if r not in globals.actors and r.strip() != "":
                 globals.actors[r] = 1
-                print "Added actor ", r
+                print("Added actor %s" % r)
+                # Update topology 
+                print("Updating topology.")
+                globals.topo_handler.add_entity(r)
+
     if (widget == "behavior"):
         text = globals.app.getTextArea("behavior")
         bhs = text.split("\n")

@@ -371,7 +371,7 @@ class GraphCanvas(tk.Canvas):
         pass
     
     def hide_node(self, disp_node):
-        for n, m, d in self.dispG.edges_iter(disp_node, data=True):
+        for n, m, d in self.dispG.edges(disp_node, data=True):
             d['token'].delete()
         self.delete(disp_node)
         self.dispG.remove_node(disp_node)
@@ -474,6 +474,41 @@ class GraphCanvas(tk.Canvas):
                         assert len(Gu) ==1; Gu=Gu[0]
                         new_nodes.add(Gu)
         self._plot_additional(new_nodes)
+    
+    def _plot_addtional(self, nodes):
+        existing_data_nodes = set([ v['G_id'] for k,v in self.dispG.node.items() ])
+        nodes = set(nodes).union(existing_data_nodes)
+        grow_graph =  self.dataG.subgraph(nodes).copy()
+        
+        fixed = {}
+        for n,d in self.dispG.nodes(data=True):
+            fixed[d['G_id']] = self.coords(n)
+        
+        layout = self.create_layout(grow_graph, pos=fixed, fixed=list(fixed.keys()))
+        
+        for n,m in grow_graph.copy().edges():
+            if (n in existing_data_nodes) and (m in existing_data_nodes):
+                grow_graph.remove_edge(n,m)
+        
+        #for n, degree in grow_graph.copy().degree():
+        #    if degree == 0:
+        #        grow_graph.remove_node(n)
+        
+        if len(grow_graph.nodes()) == 0:
+            return
+        
+        for n in grow_graph.nodes():
+            if n in existing_data_nodes:
+                continue
+            self._draw_node(layout[n], n)
+        
+        for n, m in set(grow_graph.edges()):
+            if (n in existing_data_nodes) and (m in existing_data_nodes):
+                continue
+            self._draw_edge(n,m)
+        
+        self._graph_changed()
+        
         
     def replot(self):
         nodes = [d['G_id'] for n, d in self.dispG.nodes(data=True)]
@@ -485,13 +520,13 @@ class GraphCanvas(tk.Canvas):
         # Remark nodes.
     
     def refresh(self):
-        for u,v,k,d in self.dispG.edges_iter(keys=True, data=True):
+        for u,v,k,d in self.dispG.edges(keys=True, data=True):
             item = d['token']
             G_id = d['G_id']
-            token.edge_data = self.G.get_edge_data(*G_id)
-            token.itemconfig()
+            item.edge_data = self.G.get_edge_data(*G_id)
+            item.itemconfig()
         
-        for u, d in self.dispG.nodes_iter(data=True):
+        for u, d in self.dispG.nodes(data=True):
             item = d['token']
             node_name = d['G_id']
             data = self.G.node[node_name]
@@ -542,22 +577,22 @@ class GraphCanvas(tk.Canvas):
         
         self._graph_changed()
     
-    def _plot_addidtional(self, nodes):
+    def _plot_additional(self, nodes):
         existing_data_nodes = set([ v['G_id'] for k,v in self.dispG.node.items() ])
         nodes = set(nodes).union(existing_data_nodes)
-        grow_graph = self.G.subgraph(nodes)
+        grow_graph = self.G.subgraph(nodes).copy()
          
         fixed = {}
-        for n,d in self.dispG.nodes_iter(data=True):
+        for n,d in self.dispG.nodes(data=True):
             fixed[d['G_id']] = self.coords(n)
         
         layout = self.create_layout(grow_graph, pos=fixed, fixed=list(fixed.keys()))
     
-        for n,m in grow_graph.copy().edges_iter():
+        for n,m in grow_graph.copy().edges():
             if(n in existing_data_nodes) and (m in existing_data_nodes):
                 grow_graph.remove_edge(n,m)
         
-        for n, degree in grow_graph.copy().degree_iter():
+        for n, degree in grow_graph.copy().degree():
             if degree == 0:
                 grow_graph.remove_node(n)
         
@@ -589,7 +624,7 @@ class GraphCanvas(tk.Canvas):
 
         if len(disp_node) == 0 and str(data_node).isdigit():
             data_node = int(data_node)
-            disp_node = [a for a, d in self.dispG.nodes_iter(data=True) if d['G_id'] == data_node]
+            disp_node = [a for a, d in self.dispG.nodes(data=True) if d['G_id'] == data_node]
             
         if len(disp_node) == 0:
             for f in self._node_filters:
@@ -612,7 +647,7 @@ class GraphCanvas(tk.Canvas):
         except ImportError:
             raise ImportError("Need numpy.")
         if fixed is not None:
-            nfixed = dict(zip(G.range(len(G))))
+            nfixed = dict(zip(G,range(len(G))))
             fixed=np.asarray([nfixed[v] for v in fixed])
         
         if pos is not None:
@@ -622,7 +657,7 @@ class GraphCanvas(tk.Canvas):
                 if n in pos:
                     pos_arr[i] = np.asarray(pos[n])
         else:
-            pos_arr = None
+            pos_arr = []
             dom_zie = 1.0
         
         if len(G) == 0:
@@ -658,7 +693,7 @@ class GraphCanvas(tk.Canvas):
 
         return(dict(zip(G,pos)))
     
-    def _fruchterman_reingold(self, A, dim=2, k=None, pos=None, fixed=None, iterations=50):
+    def _fruchterman_reingold(self, A, dim=2, k=None, pos=[], fixed=None, iterations=50):
         try:
             import numpy as np
         except ImportError:
@@ -671,7 +706,7 @@ class GraphCanvas(tk.Canvas):
         
         A = np.array(A)
         
-        if pos == None:
+        if pos == []:
             pos = np.asarray(np.random.random((nnodes, dim)), dtype=A.dtype)
         else:
             pos = pos.astype(A.dtype)
