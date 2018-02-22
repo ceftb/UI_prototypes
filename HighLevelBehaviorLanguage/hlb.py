@@ -11,12 +11,21 @@ except ImportError:
 def press(button):
     print(button)
 
-def tbFunc(button):
+def save(f):
+    f.write("{\nxpid: \"testex\",\n")
+    f.write("structure: {\n")
+    globals.topo_handler.save(f)
+    f.write("}\n\n")
+    f.write("behavior: {\n")
+    text = globals.app.getTextArea("behavior")        
+    f.write(text)
+    f.write("\n}\n\n")
 
+def tbFunc(button):
     print(button)
     if (button == "SAVE"):
         file_path = tkFileDialog.asksaveasfile(mode='w', defaultextension=".xir")
-        globals.topo_handler.save(file_path)
+        save(file_path)
     pass
 
 def Bentry(button):
