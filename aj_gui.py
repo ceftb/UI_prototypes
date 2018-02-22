@@ -30,8 +30,8 @@ globals.app.setStretch("both")
 
 # The tool bar is cool, but will be present across all tabs (not sure we want that)
 # To have these buttons on *just* one tab, we should create a row of individual buttons.
-tools = ["ACTOR", "BEHAVIOR", "CONSTRAINT"]
-#globals.app.addToolbar(tools, tbFunc, findIcon=True)
+tools = ["LOAD", "SAVE"]
+globals.app.addToolbar(tools, tbFunc, findIcon=True)
 
 # XXX TODO: Clean up and add more structure here.
 
