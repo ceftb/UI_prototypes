@@ -2,6 +2,7 @@ import re
 import sys
 sys.path.append('../')
 import globals
+import tkFileDialog
 
 # handle button events
 def press(button):
@@ -10,19 +11,9 @@ def press(button):
 def tbFunc(button):
 
     print(button)
-    if (button == "ACTOR"):
-        delim=""
-        text = globals.app.getTextArea("actor")        
-        if (not text.endswith("\n") and text != ""):
-            delim="\n"
-        globals.app.setTextArea("actor", delim+"actor"+str(globals.acn), True, True)
-        globals.acn=globals.acn+1
-    if (button == "BEHAVIOR"):
-        delim=""
-        text = globals.app.getTextArea("behavior")        
-        if (not text.endswith("\n") and text != ""):
-            delim="\n"
-        globals.app.setTextArea("behavior", delim+"condition actor action method effect", True, True)
+    if (button == "SAVE"):
+        file_path = tkFileDialog.asksaveasfile(mode='w', defaultextension=".xir")
+        globals.topo_handler.save(file_path)
     pass
 
 def Bentry(button):
