@@ -2,7 +2,10 @@ import re
 import sys
 sys.path.append('../')
 import globals
-import tkFileDialog
+try:
+    from tkinter import filedialog
+except ImportError:
+    import tkFileDialog
 
 # handle button events
 def press(button):

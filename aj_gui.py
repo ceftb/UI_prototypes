@@ -16,6 +16,13 @@ except ImportError:
 from appJar import gui
 import re
 from HighLevelBehaviorLanguage.hlb import *
+NLPFLAG=True
+try:
+    import spacy
+except:
+    NLPFLAG=False
+    print("WARNING: spacy not installed. Will not include NLP input processing.")
+
 from dependencyGraph.dg import dependencyGraphHandler
 from topology.topo import topoHandler
 import globals
@@ -78,6 +85,11 @@ globals.app.stopTab()
 
 ## TAB 2
 globals.app.startTab("NLP")
+if NLPFLAG:
+    from NLP.nlp import nlpHandler
+    globals.nlp_handler = nlpHandler()
+    globals.app.addScrolledTextArea("NLP Input")
+    globals.app.setTextAreaChangeFunction("NLP Input",globals.nlp_handler.nlpChanged)
 globals.app.stopTab()
 
 ## TAB 3
@@ -108,9 +120,11 @@ globals.app.stopTabbedFrame()
 # Appears to offset us by the height of the tab frame? 
 # Which we need to get after creating full frame area.
 ta = globals.app.widgetManager.get(globals.app.Widgets.TabbedFrame, "TabbedArea")
+tb = globals.app.widgetManager.get(globals.app.Widgets.Toolbar, "LOAD")
+# XXX TODO: Need to get real height of toolbar.
 tabbedHeight = ta.tabContainer.winfo_height()
-globals.bdg_handler.setoffsets(yoffset=tabbedHeight)
-globals.topo_handler.setoffsets(yoffset=tabbedHeight)
+globals.bdg_handler.setoffsets(yoffset=tabbedHeight*2)
+globals.topo_handler.setoffsets(yoffset=tabbedHeight*2)
 
 # start the GUI
 globals.app.go()

@@ -3,6 +3,7 @@ bdg_canvas = None
 topo_canvas = None
 bdg_handler = None
 topo_handler = None
+nlp_handler = None
 
 acn=0
 tcn=0
