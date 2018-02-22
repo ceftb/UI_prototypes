@@ -31,24 +31,23 @@ class dgStyle(NodeClass):
         else:
             self.create_rectangle(0,0,10,10, **marker_options)
 
-class dependencyGraphHandler():
+class dependencyGraphHandler(GraphCanvas, object):
     def __init__(self, canvas, width=0, height=0, **kwargs):
-        self.G = nx.Graph()
-        self.G.add_node(0)
-        self.G.node[0]['label'] = 'start'
+        G = nx.Graph()
+        G.add_node(0)
+        G.node[0]['label'] = 'start'
+       
+        try:
+            # Python3
+            super().__init__(G, master=canvas, width=width, height=height, NodeClass=dgStyle, **kwargs)
+        except TypeError:
+            # Python 2
+            super(dependencyGraphHandler, self).__init__(G, master=canvas, width=width, height=height, NodeClass=dgStyle, **kwargs)
 
-        #self.gc = netxCanvas(self.G, master=canvas,  style=dgStyle, width=width, height=height)
-        self.gc = GraphCanvas(self.G, master=canvas, width=width, height=height, NodeClass=dgStyle, **kwargs)
-        #self.gc.grid(row=0, column=0, sticky='NESW')
-        self.gc.pack()
-        #for item in self.gc.find_all():
-        #    print("Item:\t")
-        #    print(item)
-        #    print("Coords")
-        #    print(self.gc.coords(item))
-        #self.gc.pack()
+        self.pack()    
+    
     
     def setoffsets(self, xoffset=0, yoffset=0):
-        self.gc.xoffset = xoffset
-        self.gc.yoffset = yoffset
+        self.xoffset = xoffset
+        self.yoffset = yoffset
 
