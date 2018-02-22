@@ -75,9 +75,7 @@ class topoHandler(GraphCanvas, object):
             return
         
         num_nodes = len(self.G)
-        print("Topology adding %s (have %d nodes currently)" % (name,num_nodes))
         print("Now have %d nodes." % (len(self.G)))
-        print("Refreshing")
         self.G.add_node(num_nodes)
         self.G.node[num_nodes]['label'] = name
         for name in connections:
@@ -106,7 +104,7 @@ class topoHandler(GraphCanvas, object):
                 if e[0] not in lans:
                     lans[e[0]] = []
                 lans[e[0]].append(e[1])
-                print lans[e[0]]
+                print(lans[e[0]])
             else:
                 f.write("link:\n")
                 f.write("\tid: link" + str(l) + '\n')
