@@ -1,3 +1,4 @@
+from time import sleep
 import inspect as ins
 import pprint
 # import the library
@@ -26,6 +27,25 @@ except:
 from dependencyGraph.dg import dependencyGraphHandler
 from topology.topo import topoHandler
 import globals
+
+
+# IF WE ADD ANY ADDITIONAL MENUS/TOOLBARS ETC. WE MUST ADD CALLS TO THIS FUNCTION!!
+# The way AppJar structures the windows and Frames means we can't get
+# our actual x,y events for our canvas as it does not account for anything packed
+# above our canvas (such as menu and toolbars). This function gets these offsets
+# and relays this information to our canvas handlers.
+def fixYoffsets():
+    if globals.bdg_handler == None or globals.topo_handler == None or globals.app == None:
+        return
+    ta = globals.app.widgetManager.get(globals.app.Widgets.TabbedFrame, "TabbedArea")
+    tb = globals.app.widgetManager.get(globals.app.Widgets.Toolbar, "LOAD")
+    toolbarHeight = int(tb.master.winfo_height())
+    tabbedHeight = int(ta.tabContainer.winfo_height())
+    #print("Y offset total: %s and %s" % (str(tabbedHeight), str(toolbarHeight)))
+    
+    globals.bdg_handler.setoffsets(yoffset=tabbedHeight+toolbarHeight)
+    globals.topo_handler.setoffsets(yoffset=tabbedHeight+toolbarHeight)
+
 
 # create a GUI variable and assign our app var
 globals.app = gui("Experiment","800x600")
@@ -115,16 +135,13 @@ globals.app.stopTab()
 
 globals.app.stopTabbedFrame()
 
-# XXX TODO: Not sure why working with appjar 
-# doesn't give us correct event or winfo or canvasx/y coordinates.
-# Appears to offset us by the height of the tab frame? 
-# Which we need to get after creating full frame area.
-ta = globals.app.widgetManager.get(globals.app.Widgets.TabbedFrame, "TabbedArea")
-tb = globals.app.widgetManager.get(globals.app.Widgets.Toolbar, "LOAD")
-# XXX TODO: Need to get real height of toolbar.
-tabbedHeight = ta.tabContainer.winfo_height()
-globals.bdg_handler.setoffsets(yoffset=tabbedHeight*2)
-globals.topo_handler.setoffsets(yoffset=tabbedHeight*2)
+# The way AppJar structures the windows and Frames means we can't get
+# our actual x,y events for our canvas as it does not account for anything packed
+# above our canvas (such as menu and toolbars).
+# We can't get the height of the tab frame + toolbar + whatever else we add,
+# until we've drawn the window - that won't happen until after we draw something
+# or hit the app.go.... so we register a function that checks how off our yoffsets are.
+globals.app.registerEvent(fixYoffsets)
 
-# start the GUI
+
 globals.app.go()

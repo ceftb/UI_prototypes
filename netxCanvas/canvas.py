@@ -69,7 +69,7 @@ class GraphCanvas(tk.Canvas):
         # Are our coordinates off?
         self.x0 = self.master.winfo_rootx()
         self.y0 = self.winfo_rooty()
-        print("(0,0) at (%d,%d)" % (self.x0, self.y0))
+        #print("(0,0) at (%d,%d)" % (self.x0, self.y0))
         
         self._plot_graph(graph)
         
@@ -172,14 +172,12 @@ class GraphCanvas(tk.Canvas):
         # XXX TODO: Not sure why working with appjar 
         # doesn't give us correct event or winfo or canvasx/y coordinates.
         # Appears to offset us by the height of the tab frame?
-        print("Getting ID for event at %d,%d (canvas event %d,%d). Offsets %d,%d" % (event.x,event.y,event.widget.canvasx(event.x),event.widget.canvasy(event.y), self.xoffset, self.yoffset))
+        #print("Getting ID for event at %d,%d (canvas event %d,%d). Offsets %d,%d" % (event.x,event.y,event.widget.canvasx(event.x),event.widget.canvasy(event.y), self.xoffset, self.yoffset))
+        #print("Event in get ids is: %d,%d"% (event.x, event.y))
         for item in self.find_overlapping(event.x-self.xoffset-5, event.y-self.yoffset-5, event.x-self.xoffset+5, event.y-self.yoffset+5):
-            print("================>>>>>>>>> FOUND CANVAS ITEM <<<<<<<<<<<<<<<< =================")
-            print(item)
-            print(self.gettags(item))
             if tag in self.gettags(item):
                 return item
-        print("Found no matching item")
+        #print("Found no matching item. (Yoffset is: %d)" % self.yoffset)
         return None
         #raise Exception('No Item Found')
     
@@ -259,7 +257,7 @@ class GraphCanvas(tk.Canvas):
         
 
     def onPanStart(self, event):
-        print("Pan start")
+        #print("Pan start: %d, %d" % (event.x, event.y))
         # Window or canvas?
         # self._pan_data = (self.canvasx(event.x), self.canvasy(event.y))
         self._pan_data = (event.x, event.y)
@@ -272,12 +270,12 @@ class GraphCanvas(tk.Canvas):
         self._pan_data = (event.x, event.y)
     
     def onPanEnd(self, event):
-        print("Pan end")
+        #print("Pan end")
         self._pan_data = (None, None)
         self.winfo_toplevel().config(cursor='arrow')
     
     def onZoom(self, event):
-        print("Zoom")
+        #print("Zoom")
         factor = 0.1 * (1 if event.delta < 0 else -1)
         
         x = (event.widget.winfo_rootx() + event.x) - self.winfo_rootx()
@@ -305,8 +303,12 @@ class GraphCanvas(tk.Canvas):
                 data['token'].coords((from_xy+spline_xy+to_xy))
                 
     def onNodeButtonPress(self, event):
-        print("Node button press")
+        #print("Node button press")
         item = self._get_id(event)
+        if item == None:
+            #print("Trying to get widget from event.")
+            #print(event.widget)
+            pass
         if item != None:
             self._drag_data['item'] = item
             #self._drag_data['x'] = self.canvasx(event.x)
@@ -322,7 +324,7 @@ class GraphCanvas(tk.Canvas):
         pass
         
     def onNodeButtonRelease(self, event):
-        print("Button release")
+        #print("Button release")
         self._drag_data['item'] = None
         self._drag_data['x'] = 0
         self._drag_data['y'] = 0
@@ -362,14 +364,6 @@ class GraphCanvas(tk.Canvas):
     def onNodeKey(self, event):	
         pass
     
-    def grow_node(self, disp_node, levels=1):
-        print("Grow not implemented")
-        pass
-    
-    def grow_until(self, disp_node, stop_condition = None, levels=0):
-        print("Grow until not implemented.")
-        pass
-    
     def hide_node(self, disp_node):
         for n, m, d in self.dispG.edges(disp_node, data=True):
             d['token'].delete()
@@ -382,12 +376,12 @@ class GraphCanvas(tk.Canvas):
         item.mark()
     
     def center_on_node(self, data_node):
-        print("CENTERED ON NODE")
+        #print("CENTERED ON NODE")
         try:
             disp_node = self._find_disp_node(data_node)
         except ValueError as e:
-            tkm.showerror("Unable to find node", str(e))
-            print("Unable to find center node?")
+            #tkm.showerror("Message", "")
+            #print("Unable to find center node?")
             return
         x,y = self.coords(self.dispG.node[disp_node]['token_id'])
         
@@ -398,7 +392,7 @@ class GraphCanvas(tk.Canvas):
         if w == 0:
             w = int(self['width'])/2
             h = int(self['height'])/2
-        print("Measured canvas w/h: %dx%d" % (w*2,h*2))
+        #print("Measured canvas w/h: %dx%d" % (w*2,h*2))
         delta_x = w - x
         delta_y = h - y
         

@@ -67,7 +67,7 @@ class topoHandler(GraphCanvas, object):
         self._plot_additional(self.G.node[num_nodes])
         self._plot_additional([num_nodes])
         self.refresh()
-
+    
     def save(self, f):
         num_nodes = len(self.G)
         print("Have %d nodes ", (num_nodes))
@@ -76,4 +76,4 @@ class topoHandler(GraphCanvas, object):
             f.write("node:\n")
             f.write("\tid: " + str(n) + '\n')
             f.write("\tendpoints: [" + nodes[n] + ']\n')
-            f.write("\tprops: {}\n");
+            f.write("\tprops: {}\n")
