@@ -62,7 +62,7 @@ class topoHandler(GraphCanvas, object):
             for key, value in labels.iteritems():
                 if name == value:
                     return key
-        except SyntaxError:
+        except (SyntaxError, AttributeError) as e:
             for key, value in labels.items():
                 if name == value:
                     return key
