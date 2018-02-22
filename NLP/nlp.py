@@ -8,6 +8,8 @@ from NLP.nlplib import findEntities, findCondClauses, actionRelation
 class nlpHandler():
     sentences = []
     dict = spacy.load('en')
+    submittedTriggers = []
+    timeindex = 0
 
     def nlpChanged(self, widget):
         current_text = globals.app.getTextArea("NLP Input")
@@ -20,30 +22,120 @@ class nlpHandler():
                         
                         tokens = self.dict(sentence)
                         
-                        cond_clauses = findCondClauses(tokens)
-                        main_sen = sentence
-                        i = 1
-                        for cond in cond_clauses:
-                            main_sen = main_sen.replace(str(cond), '', 1)
-                            i = i+1
-                        main_action_relation = actionRelation(main_sen)
-                        clause_action_relation = []
-                        if len(cond_clauses) > 0:
-                            clause_action_relation = actionRelation(cond_clauses[0])
-                        if len(cond_clauses) > 1:
-                            print("Warning: Mutiple conditional statements in a sentence is not handled.")
-                        print("Main action relation:")
-                        print(main_action_relation)
-                        if len(cond_clauses) > 0:
-                            print("Conditional action relation")
-                            print(clause_action_relation)
-                                        
                         # Entities.
                         entities = findEntities(tokens)
+                        actors = []
                         for ent in entities:
-                            globals.app.setTextArea("actor",''.join(x for x in str(ent).title() if not x.isspace()) +'\n', callFunction=actorentered)
+                            ent_str = ''.join(x for x in str(ent).title() if not x.isspace())
+                            globals.app.setTextArea("actor",ent_str+'\n', callFunction=actorentered)
+                            actors.append(ent_str)
+                        
+                        # Generate Behavior Suggestions
+                        suggested_hlb = self.generate_behavior(sentence, tokens, actors=actors)
+                        if suggested_hlb != None:
+                            print(suggested_hlb)
                         
             elif len(current_text.split('.')) < len(self.sentences):
                 print("Do not handle erasures yet.")
                 # We have lost a sentence.
             self.sentences = [s.strip() for s in current_text.split('.')]
+    
+    def generate_behavior(self, sentence, tokens, actors=[]):
+        
+        # Pull out any conditional clauses.
+        cond_clauses = findCondClauses(tokens)    
+        
+        # Pull out each of these clauses to simplify the main sentence.
+        main_sen = sentence
+        for cond in cond_clauses:
+            main_sen = main_sen.replace(str(cond[0]), '', 1)
+        
+        # Get the main action relation
+        print("Main sentence part: %s" % main_sen)
+        main_action_relation = actionRelation(main_sen)
+    
+        # Try and parse the main conditional clause (if we have one)
+        # We only handle one clause. Others are ignored.
+        clause_action_relation = ()
+        if len(cond_clauses) > 0:
+            clause_action_relation = actionRelation(cond_clauses[0][0])
+            clause_action_dep = str(cond_clauses[0][1]) 
+            #print(clause_action_relation)
+        if len(cond_clauses) > 1:
+            print("WARNING: We do not handle multiple conditional clauses in a sentence.")
+        
+        # Get the main action.
+        try:
+            actor, action, object = main_action_relation[0]
+        except(ValueError, IndexError):
+            # We didn't have enough values to unpack, skip everything else and return.
+            print("WARNING: Did not extract any behavior from:\n\t%s"%(sentence))
+            print(main_action_relation)
+            return None
+        
+        main_hlb, main_trigger = self.hlbify(actor, action, object, actors=actors)
+        #print("MAIN HLB: %s. TRIGGER: %s" % (main_hlb, main_trigger))
+        
+        try:
+            #print("Have below for clause action relation:\n\t"),
+            #print(clause_action_relation)
+            cond_actor, cond_action, cond_object = clause_action_relation[0]
+        except(ValueError, IndexError):
+            # We'll assume this is a wait.
+            stmt = "WAIT X%d %s EMIT %s\n" % (self.timeindex, main_hlb, main_trigger)
+            self.timeindex = self.timeindex + 1
+            return(stmt)
+        
+        cond_hlb, cond_trigger = self.hlbify(cond_actor, cond_action, cond_object, actors=actors)
+        
+        if clause_action_dep == "<<STARTS BEFORE MAIN CLAUSE>>":
+            main_hlb = "WHEN %s %s EMIT %s" % (cond_trigger,main_hlb,main_trigger)
+            cond_hlb = "%s EMIT %s" %(cond_hlb, cond_trigger)
+        elif clause_action_dep == "<<STARTS AFTER MAIN CLAUSE>>":
+            main_hlb = "%s EMIT %s" %(main_hlb, main_trigger)
+            cond_hlb = "WHEN %s %s EMIT %s" % (main_trigger, cond_hlb, cond_trigger)
+        else:
+            # We want to start these at the same time??
+            cond_hlb = "WAIT X%d %s EMIT %s" % (self.timeindex, cond_hlb, cond_trigger)
+            main_hlb = "WAIT X%d %s EMIT %s" % (self.timeindex, main_hlb, main_trigger)
+            self.timeindex = self.timeindex + 1
+        
+        return_stmt = ""
+        if cond_trigger not in self.submittedTriggers:
+            # We already have submitted the conditional action statement.
+            self.submittedTriggers.append(cond_trigger)
+            return_stmt = cond_hlb+'\n'
+        if main_trigger not in self.submittedTriggers:
+            self.submittedTriggers.append(main_trigger)
+            return_stmt = return_stmt + main_hlb
+        if return_stmt != "":
+            return(return_stmt)
+        else:
+            return None
+
+    def hlbify(self, actor, action, object, actors=[]):
+        action_type = self.expActionType(action)
+        for a in actors:
+            if actor.lower() in a.lower():
+                actor = a
+            if object.lower() in a.lower():
+                object = a
+        if object not in ["<<ITSELF>>"]:
+            script = action_type + object.title()
+        else:
+            script = action_type + actor.title()
+        return("%s %s" % (actor, script), "%sSignal" %(script))
+
+    def baseForm(self, word):
+        tokens = self.dict(word)
+        for t in tokens:
+            return str(t.lemma_).lower().strip()
+
+    def expActionType(self, word):
+        base = self.baseForm(word)
+        if base in ['start', 'begin', 'boot', 'commence', 'deploy', 'kick', 'trigger', 'launch']:
+            return 'start'
+        if base in ['end', 'stop', 'finish', 'quit', 'die', 'close', 'exit']:
+            return 'end'
+        return base
+        

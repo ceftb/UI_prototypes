@@ -158,11 +158,22 @@ def findCondClauses(tokens):
         #print()
         #print(tok.dep_)
         #print(''.join(t.text_with_ws for t in tok.subtree))
-        if tok.dep_ in ('acomp', 'xcomp', 'ccomp', 'advcl'):
+        if tok.dep_ in ('acomp', 'xcomp', 'ccomp', 'advcl', 'prep'):
             clause=(''.join(t.text_with_ws for t in tok.subtree))
-            if any(word in clause.lower() for word in ['when', 'if', 'after', 'before']):
+            if any(word in clause.lower() for word in ['at', 'when', 'if', 'after', 'before', 'then', 'during']):
                 condcl = (''.join(t.text_with_ws for t in tok.subtree))
-                clauses.append(condcl)
+                
+                # Try and get the notion of dependency.
+                # before
+                if any(word in clause.lower() for word in ['then', 'before']):                
+                    dep = "<<STARTS AFTER MAIN CLAUSE>>"
+                # after
+                elif any(word in clause.lower() for word in ['if', 'after']):
+                    dep = "<<STARTS BEFORE MAIN CLAUSE>>"
+                # during
+                elif any(word in clause.lower() for word in ['at', 'when', 'during']):
+                    dep = "<<SAMETIME>>"
+                clauses.append((condcl, dep))
             else:
                 print("WARNING: Unhandled clause: %s" % clause)
     return clauses
@@ -176,7 +187,8 @@ def findEntities(toks):
     return entities    
    
 def actionRelation(sen):   
-    remove_list = ['will', 'has']
+    #remove_list = ['will', 'has']
+    remove_list = []
     sen = sen.split()
     sen = ' '.join([i for i in sen if i not in remove_list])
     tokens = nlp(sen) 
@@ -202,8 +214,8 @@ def testing():
         main_sen = sen
         i=1
         for cond in cond_clauses:
-            print("%d: %s" % (i, cond))
-            main_sen = main_sen.replace(str(cond), '', 1)
+            print("%d: %s (dep: %s)" % (i, str(cond[0]), str(cond[1])))
+            main_sen = main_sen.replace(str(cond[0]), '', 1)
             i = i+1
         print("Main Sentence:")
         print(main_sen)
@@ -211,7 +223,10 @@ def testing():
         main_action_relation = actionRelation(main_sen)
         clause_action_relation = []
         if len(cond_clauses) > 0:
-            clause_action_relation = actionRelation(cond_clauses[0])
+            clause_action_relation = actionRelation(cond_clauses[0][0])
+            clause_action_dep = str(cond_clauses[0][1])
+            if len(clause_action_relation) == 0:
+                clause_action_relation = cond_clauses[0][0]
         if len(cond_clauses) > 1:
             print("Warning: Mutiple conditional statements in a sentence is not handled.")
         print("Main action relation:")
@@ -219,6 +234,8 @@ def testing():
         if len(cond_clauses) > 0:
             print("Conditional action relation")
             print(clause_action_relation)
+            print(clause_action_dep)
+            #print("%s:%s" % (''.join(str(s) for s in clause_action_relation), clause_action_dep))
         
         # Identify all the entities.
         entities = findEntities(tokens)
