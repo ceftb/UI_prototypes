@@ -34,6 +34,7 @@ class nlpHandler():
                         suggested_hlb = self.generate_behavior(sentence, tokens, actors=actors)
                         if suggested_hlb != None:
                             print(suggested_hlb)
+                            globals.app.setTextArea("behavior", suggested_hlb, callFunction=behaviorentered)
                         
             elif len(current_text.split('.')) < len(self.sentences):
                 print("Do not handle erasures yet.")
