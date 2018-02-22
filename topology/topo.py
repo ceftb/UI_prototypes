@@ -34,7 +34,8 @@ class topoStyle(NodeClass):
 class topoHandler(GraphCanvas, object):
     def __init__(self, canvas, width=0, height=0, **kwargs):
         G = nx.Graph()
-
+   
+        G.add_node(0, label='lan')
         G.add_edge(0,1)
         G.add_edge(0,2)
         G.add_edge(0,3)
@@ -69,6 +70,8 @@ class topoHandler(GraphCanvas, object):
         self.refresh()
 
     def save(self, f):
+        l=0
+        lans=dict()
         num_nodes = len(self.G)
         print("Have %d nodes ", (num_nodes))
         nodes = nx.get_node_attributes(self.G, 'label')
@@ -77,3 +80,28 @@ class topoHandler(GraphCanvas, object):
             f.write("\tid: " + str(n) + '\n')
             f.write("\tendpoints: [" + nodes[n] + ']\n')
             f.write("\tprops: {}\n");
+        edges = nx.edges(self.G);
+        for e in edges:
+            if nodes[e[0]].startswith("lan"):
+                if e[0] not in lans:
+                    lans[e[0]] = []
+                lans[e[0]].append(e[1])
+                print lans[e[0]]
+            else:
+                f.write("link:\n")
+                f.write("\tid: link" + str(l) + '\n')
+                l=l+1
+                f.write("\tendpoints: [[" + nodes[e[0]] + "],[" + nodes[e[1]]+"\n")
+                f.write("\tprops: {}\n");
+        for n in lans:
+            f.write("net:\n")
+            f.write("\tid: " + str(n) + '\n')
+            f.write("\tnodes: [")
+            first = 0
+            for i in lans[n]:
+                if first == 1:
+                    f.write(",")
+                first = 1
+                f.write(str(i));
+            f.write("]\n");
+            
