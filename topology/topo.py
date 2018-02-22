@@ -54,13 +54,15 @@ class topoHandler(GraphCanvas, object):
         self.xoffset = xoffset
         self.yoffset = yoffset
 
-    def add_entity(self, name):
+    def add_entity(self, name, connections=['lan0']):
         num_nodes = len(self.G)
         print("Topology adding %s (have %d nodes currently)" % (name,num_nodes))
         print("Now have %d nodes." % (len(self.G)))
         print("Refreshing")
         self.G.add_node(num_nodes, label=name)
-        self.G.add_edge(0, num_nodes)
+        #for name in connections:
+        #    node = self.find_label(name)
+        #    self.G.add_edge(node, num_nodes)
 
         self._plot_additional(self.G.node[num_nodes])
         self._plot_additional([num_nodes])
