@@ -35,14 +35,15 @@ class topoHandler(GraphCanvas, object):
     def __init__(self, canvas, width=0, height=0, **kwargs):
         G = nx.Graph()
    
-        G.add_node(0, label='lan')
-        G.add_edge(0,1)
-        G.add_edge(0,2)
-        G.add_edge(0,3)
+        G.add_node(0, label='lan0')
+        #G.add_edge(0,1)
+        #G.add_edge(0,2)
+        #G.add_edge(0,3)
 
         G.node[0]['circle'] = True
         G.node[0]['color'] = 'green'
-        G.node[1]['color'] = 'blue'
+        G.node[0]['label'] = 'lan0'
+        #G.node[1]['color'] = 'blue'
         try:
             # Python 3
             super().__init__(G, master=canvas, width=width, height=height, NodeClass=topoStyle, **kwargs)
@@ -54,16 +55,35 @@ class topoHandler(GraphCanvas, object):
     def setoffsets(self, xoffset=0, yoffset=0):
         self.xoffset = xoffset
         self.yoffset = yoffset
-
+    
+    def find_label(self, name):
+        labels = nx.get_node_attributes(self.G, 'label')
+        try:
+            for key, value in labels.iteritems():
+                if name == value:
+                    return key
+        except SyntaxError:
+            for key, value in labels.items():
+                if name == value:
+                    return key
+        return None
+        
     def add_entity(self, name, connections=['lan0']):
+        # XXX TODO have to add support for deletions.
+
+        if self.find_label(name) != None:
+            return
+        
         num_nodes = len(self.G)
         print("Topology adding %s (have %d nodes currently)" % (name,num_nodes))
         print("Now have %d nodes." % (len(self.G)))
         print("Refreshing")
-        self.G.add_node(num_nodes, label=name)
-        #for name in connections:
-        #    node = self.find_label(name)
-        #    self.G.add_edge(node, num_nodes)
+        self.G.add_node(num_nodes)
+        self.G.node[num_nodes]['label'] = name
+        for name in connections:
+            node = self.find_label(name)
+            if node != None:
+                self.G.add_edge(node, num_nodes)
 
         self._plot_additional(self.G.node[num_nodes])
         self._plot_additional([num_nodes])

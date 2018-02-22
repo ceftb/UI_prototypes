@@ -34,12 +34,8 @@ class dgStyle(NodeClass):
 class dependencyGraphHandler():
     def __init__(self, canvas, width=0, height=0, **kwargs):
         self.G = nx.Graph()
-        self.G.add_edge(0,1)
-        self.G.add_edge(0,2)
-        self.G.add_edge(0,3)
-
-        self.G.node[0]['circle'] = True
-        self.G.node[1]['color'] = 'blue'
+        self.G.add_node(0)
+        self.G.node[0]['label'] = 'start'
 
         #self.gc = netxCanvas(self.G, master=canvas,  style=dgStyle, width=width, height=height)
         self.gc = GraphCanvas(self.G, master=canvas, width=width, height=height, NodeClass=dgStyle, **kwargs)

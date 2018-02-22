@@ -64,7 +64,6 @@ globals.app.addToolbar(tools, tbFunc, findIcon=True)
 
 tabbed_frame = globals.app.startTabbedFrame("TabbedArea")
 
-
 ## Tab1
 globals.app.startTab("HLB")
 globals.app.startLabelFrame("Actors", 0,0)

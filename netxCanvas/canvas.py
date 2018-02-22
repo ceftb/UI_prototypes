@@ -150,6 +150,8 @@ class GraphCanvas(tk.Canvas):
             
     def _draw_node(self, coord, data_node):
         (x,y) = coord
+        if len(self.G) == 1:
+            return 0
         data = self.G.node[data_node]
         
         for filter_lambda in self._node_filters:
@@ -169,11 +171,6 @@ class GraphCanvas(tk.Canvas):
         return id
     
     def _get_id(self, event, tag='node'):
-        # XXX TODO: Not sure why working with appjar 
-        # doesn't give us correct event or winfo or canvasx/y coordinates.
-        # Appears to offset us by the height of the tab frame?
-        #print("Getting ID for event at %d,%d (canvas event %d,%d). Offsets %d,%d" % (event.x,event.y,event.widget.canvasx(event.x),event.widget.canvasy(event.y), self.xoffset, self.yoffset))
-        #print("Event in get ids is: %d,%d"% (event.x, event.y))
         for item in self.find_overlapping(event.x-self.xoffset-5, event.y-self.yoffset-5, event.x-self.xoffset+5, event.y-self.yoffset+5):
             if tag in self.gettags(item):
                 return item
@@ -468,41 +465,7 @@ class GraphCanvas(tk.Canvas):
                         assert len(Gu) ==1; Gu=Gu[0]
                         new_nodes.add(Gu)
         self._plot_additional(new_nodes)
-    
-    def _plot_addtional(self, nodes):
-        existing_data_nodes = set([ v['G_id'] for k,v in self.dispG.node.items() ])
-        nodes = set(nodes).union(existing_data_nodes)
-        grow_graph =  self.dataG.subgraph(nodes).copy()
-        
-        fixed = {}
-        for n,d in self.dispG.nodes(data=True):
-            fixed[d['G_id']] = self.coords(n)
-        
-        layout = self.create_layout(grow_graph, pos=fixed, fixed=list(fixed.keys()))
-        
-        for n,m in grow_graph.copy().edges():
-            if (n in existing_data_nodes) and (m in existing_data_nodes):
-                grow_graph.remove_edge(n,m)
-        
-        #for n, degree in grow_graph.copy().degree():
-        #    if degree == 0:
-        #        grow_graph.remove_node(n)
-        
-        if len(grow_graph.nodes()) == 0:
-            return
-        
-        for n in grow_graph.nodes():
-            if n in existing_data_nodes:
-                continue
-            self._draw_node(layout[n], n)
-        
-        for n, m in set(grow_graph.edges()):
-            if (n in existing_data_nodes) and (m in existing_data_nodes):
-                continue
-            self._draw_edge(n,m)
-        
-        self._graph_changed()
-        
+            
         
     def replot(self):
         nodes = [d['G_id'] for n, d in self.dispG.nodes(data=True)]
@@ -580,6 +543,10 @@ class GraphCanvas(tk.Canvas):
         for n,d in self.dispG.nodes(data=True):
             fixed[d['G_id']] = self.coords(n)
         
+        if len(existing_data_nodes) == 0:
+            self._plot_graph(self.G)
+            self._graph_changed()
+            return
         layout = self.create_layout(grow_graph, pos=fixed, fixed=list(fixed.keys()))
     
         for n,m in grow_graph.copy().edges():
