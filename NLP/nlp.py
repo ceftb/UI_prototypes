@@ -9,6 +9,7 @@ class nlpHandler():
     sentences = []
     dict = spacy.load('en')
     submittedTriggers = []
+    submittedActors = []
     timeindex = 0
 
     def nlpChanged(self, widget):
@@ -27,7 +28,9 @@ class nlpHandler():
                         actors = []
                         for ent in entities:
                             ent_str = ''.join(x for x in str(ent).title() if not x.isspace())
-                            globals.app.setTextArea("actor",ent_str+'\n', callFunction=actorentered)
+                            if ent_str not in self.submittedActors:
+                                globals.app.setTextArea("actor",ent_str+'\n', callFunction=actorentered)
+                                self.submittedActors.append(ent_str)
                             actors.append(ent_str)
                         
                         # Generate Behavior Suggestions
@@ -74,7 +77,7 @@ class nlpHandler():
             print(main_action_relation)
             return None
         
-        main_hlb, main_trigger = self.hlbify(actor, action, object, actors=actors)
+        main_hlb, main_trigger = self.hlbify(actor, action, object, actors=findEntities(self.dict(main_sen)))
         #print("MAIN HLB: %s. TRIGGER: %s" % (main_hlb, main_trigger))
         
         try:
@@ -87,7 +90,7 @@ class nlpHandler():
             self.timeindex = self.timeindex + 1
             return(stmt)
         
-        cond_hlb, cond_trigger = self.hlbify(cond_actor, cond_action, cond_object, actors=actors)
+        cond_hlb, cond_trigger = self.hlbify(cond_actor, cond_action, cond_object, actors=findEntities(self.dict(cond_clauses[0][0])))
         
         if clause_action_dep == "<<STARTS BEFORE MAIN CLAUSE>>":
             main_hlb = "WHEN %s %s EMIT %s" % (cond_trigger,main_hlb,main_trigger)
@@ -116,11 +119,25 @@ class nlpHandler():
 
     def hlbify(self, actor, action, object, actors=[]):
         action_type = self.expActionType(action)
-        for a in actors:
+        shortest_actor_match = -1
+        shortest_object_match = -1
+        for act in actors:
+            a = ''.join(x for x in str(act).title() if not x.isspace())
+            # This isn't a good match - we need to figure out the modifiers from the text.
             if actor.lower() in a.lower():
-                actor = a
+                if shortest_actor_match < 0:
+                    shortest_actor_match = len(a) 
+                    actor = a
+                elif shortest_actor_match <= len(a):
+                    shortest_actor_match = len(a) 
+                    actor = a
             if object.lower() in a.lower():
-                object = a
+                if shortest_object_match < 0:
+                    shortest_object_match = len(a)
+                    object = a
+                elif shortest_object_match <= len(a):
+                    shortest_object_match = len(a)
+                    object = a
         if object not in ["<<ITSELF>>"]:
             script = action_type + object.title()
         else:
@@ -138,5 +155,7 @@ class nlpHandler():
             return 'start'
         if base in ['end', 'stop', 'finish', 'quit', 'die', 'close', 'exit']:
             return 'end'
+        if base in ['if', 'be', 'will', 'can', 'have']:
+            return 'check'
         return base
         

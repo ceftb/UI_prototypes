@@ -403,6 +403,7 @@ def left(widget):
                 if (prev == "emit"):
                     globals.events[item] = 1
                 prev = item
+            globals.bdg_handler.add_new_behavior(b)
 
 def entered(widget):
     print(widget)
