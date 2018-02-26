@@ -14,7 +14,7 @@ class HLBParser():
     event =(not_akeyword + Word(alphanums))
     events = event + ZeroOrMore((comma + wsp + event | comma + event))
     when_trigger = when_keyword + events("t_events")
-    wait_time = Word(nums)
+    wait_time = Word(alphanums)
     wait_trigger = wait_keyword + wait_time("wait_time")
     trigger = (when_trigger + wsp + wait_trigger | when_trigger | wait_trigger)
     hlb_statement = (trigger("trigger") + wsp +  actors("actors") + wsp + action("action") + emit_keyword + events("emit_events") | trigger("trigger") + wsp + actors("actors") + wsp + action("action"))
