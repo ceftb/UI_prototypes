@@ -13,7 +13,10 @@ class HLBParser():
     action = (Optional(CaselessKeyword("start") | CaselessKeyword("stop") | CaselessKeyword("restart") | CaselessKeyword("check")) + Word(alphanums))	
     event =(not_akeyword + Word(alphanums))
     events = event + ZeroOrMore((comma + wsp + event | comma + event))
-    trigger = (when_keyword + events("t_events") | when_keyword + events("t_events") + wait_keyword + nums | wait_keyword + nums)
+    when_trigger = when_keyword + events("t_events")
+    wait_time = Word(nums)
+    wait_trigger = wait_keyword + wait_time("wait_time")
+    trigger = (when_trigger + wsp + wait_trigger | when_trigger | wait_trigger)
     hlb_statement = (trigger("trigger") + wsp +  actors("actors") + wsp + action("action") + emit_keyword + events("emit_events") | trigger("trigger") + wsp + actors("actors") + wsp + action("action"))
     #hlb = hlb_statement + newline + hlb
     
@@ -25,23 +28,23 @@ class HLBParser():
             parsed = self.hlb_statement.parseString(statement)
         except ParseException as pe:
             print("WARNING: Could not parse HLB statement:\n\t%s" % (statement))
-            return(None, None, None, None)
+            return(None, None, None, None, None)
 
-        return(parsed.t_events, parsed.actors, parsed.action, parsed.emit_events)
+        return(parsed.t_events, parsed.actors, parsed.action, parsed.emit_events, parsed.wait_time)
 
 def testParser():
     parser = HLBParser()
     while True:
         print("Enter statement.")
         line = input()
-        (t_events, actors, action, e_events) = parser.parse_stmt(line)
+        (t_events, actors, action, e_events, wait_time) = parser.parse_stmt(line)
         if actors != None:
             print("Trigger(s): %s" % t_events)
             print("Actors: %s" %  actors)        
             print("Action: %s" %  action)        
             print("Emit events: %s" % e_events)
+            print("Wait time: %s" % wait_time)
     
-
 if __name__ == "__main__":
     testParser()
     
