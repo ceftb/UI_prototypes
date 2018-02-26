@@ -1,4 +1,4 @@
-from pyparsing import ParseException, NotAny, Group, Word, CaselessKeyword, Literal, alphas, alphanums, nums, White, ZeroOrMore, OneOrMore, Optional
+from pyparsing import ParseException, NotAny, Empty, Group, Word, CaselessKeyword, Literal, alphas, alphanums, nums, White, ZeroOrMore, OneOrMore, Optional
 
 class HLBParser():
     when_keyword = CaselessKeyword("when").suppress()
@@ -17,7 +17,10 @@ class HLBParser():
     wait_time = Word(alphanums)
     wait_trigger = wait_keyword + wait_time("wait_time")
     trigger = (when_trigger + wsp + wait_trigger | when_trigger | wait_trigger)
-    hlb_statement = (trigger("trigger") + wsp +  actors("actors") + wsp + action("action") + emit_keyword + events("emit_events") | trigger("trigger") + wsp + actors("actors") + wsp + action("action"))
+    hlb_statement = (trigger("trigger") + wsp + actors("actors") + wsp + action("action") + emit_keyword + events("emit_events") 
+                    | actors("actors") + wsp + action("action") + emit_keyword + events("emit_events")
+                    |trigger("trigger") + wsp + actors("actors") + wsp + action("action") 
+                    | actors("actors") + wsp + action("action"))
     #hlb = hlb_statement + newline + hlb
     
     
