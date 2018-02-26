@@ -35,8 +35,8 @@ class HLBParser():
 def testParser():
     parser = HLBParser()
     while True:
-        print("Enter statement.")
-        line = input()
+        line = raw_input("Input statement: ")
+        print(line)
         (t_events, actors, action, e_events, wait_time) = parser.parse_stmt(line)
         if actors != None:
             print("Trigger(s): %s" % t_events)
