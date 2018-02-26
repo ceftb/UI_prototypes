@@ -55,6 +55,7 @@ globals.app.setFont(18)
 globals.app.setSticky("news")
 globals.app.setStretch("both")
 
+
 # The tool bar is cool, but will be present across all tabs (not sure we want that)
 # To have these buttons on *just* one tab, we should create a row of individual buttons.
 tools = ["LOAD", "SAVE"]
@@ -144,5 +145,5 @@ globals.app.stopTabbedFrame()
 # or hit the app.go.... so we register a function that checks how off our yoffsets are.
 globals.app.registerEvent(fixYoffsets)
 
-
 globals.app.go()
+

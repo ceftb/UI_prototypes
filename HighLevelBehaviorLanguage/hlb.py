@@ -21,9 +21,61 @@ def save(f):
     f.write(text)
     f.write("\n}\n\n")
 
+def gather_bindings():
+    print "Globals dialogue ",globals.dialogue
+    if (globals.dialogue == None):
+        globals.app.startSubWindow("Dialogue",modal=True)
+        globals.app.setGeometry("400x400")
+        globals.app.setSticky("news")
+        globals.app.setStretch("both")
+        globals.app.startScrollPane("Dialogue")
+        globals.dialogue = True
+        globals.app.addLabel("bt1", "Please enter paths to executables for all the following actions and events.",0,0,2)
+        globals.app.addLabel("bt2", "Event executables should return 1 if the event occured, and 0 otherwise.",1,0,2)
+    else:
+        globals.app.openSubWindow("Dialogue")
+        globals.app.openScrollPane("Dialogue")
+        globals.app.removeButton("Submit")
+    globals.app.clearAllEntries()
+
+    for a in globals.dlabels:
+        globals.app.removeLabel(a)
+    for a in globals.dentries:
+        globals.app.removeEntry(a)
+    globals.dlabels.clear()
+    globals.dentries.clear()
+
+    i = 2
+    ce = 0
+    for a in globals.actions:
+        globals.app.addLabel(a, a, i, 0)
+        globals.dlabels[a] = 1
+        globals.app.addEntry("e"+str(ce),i,1)
+        globals.dentries["e"+str(ce)] = 1
+        ce += 1
+        i += 1
+    for a in globals.events:
+        globals.app.addLabel(a, a, i, 0)
+        globals.dlabels[a] = 1
+        globals.app.addEntry("e"+str(ce),i,1)
+        globals.dentries["e"+str(ce)] = 1
+        ce += 1
+        i += 1
+    globals.app.addButton("Submit", tbFunc, i, 0, 2)
+    globals.app.stopScrollPane()
+    globals.app.stopSubWindow()
+    globals.app.showSubWindow("Dialogue")
+
 def tbFunc(button):
     print(button)
     if (button == "SAVE"):
+        # create another window for setting bindings for actions 
+        gather_bindings();
+
+        #save(file_path)
+    elif (button == "Submit"):
+        # take and save all the input
+        globals.app.hideSubWindow("Dialogue")
         file_path = tkFileDialog.asksaveasfile(mode='w', defaultextension=".xir")
         save(file_path)
     pass
@@ -88,6 +140,10 @@ def addSuggestions(evtype, pb):
         for s in ["wait t"]:
             globals.sbuttons[s] = 1
             globals.app.addButton(s, pb)
+    elif evtype == "constraints_enter":
+        for l in ["num", "os","link","lan","interfaces","location","nodetype"]:
+            globals.app.addButton(l,Centry)
+            globals.sbuttons[l]=1
     elif evtype == "emit":
         globals.sbuttons["emit"] = 1
         globals.app.addButton("emit", pb)
@@ -106,29 +162,91 @@ def processConstraints():
             globals.app.removeLabel(t)
         globals.slabels.clear()
         text = globals.app.getTextArea("constraints")
-        cs = text.strip().split(" ")
-        if cs[-1] in ["num", "os","nodetype", "interfaces", "location", "link","lan"]:
+        chs = text.split("\n")
+        i=0
+        lnc = 0
+        # parse out constraints and remember them
+        # from every line including the last
+        globals.events.clear()
+        globals.constraints.clear()
+        globals.links.clear()
+        globals.lans.clear()
+        globals.nodes.clear()
+        for c in chs:
+            items = re.split("[\s,]",c.strip())
+            item = items.pop(0)
+            # parse out constraints
+            if len(items) >= 2:
+                if (item == "num" or item == "os" or item == "location" or item == "interfaces" or item == "nodetype"):
+                    if items[0] in globals.actors:
+                        if items[0] not in globals.constraints:
+                            globals.constraints[items[0]] = dict()
+                        globals.constraints[items[0]][item] = items[1]        
+                if (item == "num"):
+                    for i in range(0,int(items[1])):
+                        globals.nodes[items[0]+str(i)] = 1
+                if (item == "link"):
+                    if len(items) >= 2:
+                        a = items.pop(0)
+                        b = items.pop(0)
+                        if ((a in globals.actors and b in globals.actors) or
+                            (a in globals.nodes and b in globals.nodes)):
+                            if a not in globals.links:
+                                globals.links[a] = dict()
+                            globals.links[a][b] = ""
+                            for i in items:
+                                globals.links[a][b] += (i + " ")
+                if (item == "lan"):
+                    label = "lan" + str(lnc)
+                    if label not in globals.lans:
+                        globals.lans[label] = dict()
+                    for i in items:
+                        if i in globals.actors or i in globals.nodes:
+                            globals.lans[label][i] = 1
+                    lnc = lnc + 1
+
+        # Go through last constraint line to see what we can suggest
+        ll = chs.pop()
+        items = re.split("[\s,]",ll.strip())
+        item = items.pop(0)
+        print "Len ", len(items), " item ", item
+        if item in ["num", "os","nodetype", "interfaces", "location", "link","lan"] and len(items) == 0:
             addSuggestions("actors_only", Centry)
-        elif len(cs) >= 2:
-            if (cs[-2] == "num" or cs[-2] == "interfaces") and cs[-1] in globals.actors:
+        elif len(items) >= 1:
+            if (item == "num" or item == "interfaces") and items[-1] in globals.actors:
                 addSuggestions("enter digit", Centry)
-            elif cs[-2] == "os" and cs[-1] in globals.actors:
+            elif item == "os" and (items[-1] in globals.actors 
+                                   or items[-1] in globals.nodes):
                 addSuggestions("enter OS", Centry)
-            elif cs[-2] == "link" and cs[-1] in globals.actors:
+            elif item == "nodetype" and (items[-1] in globals.actors 
+                                        or items[-1] in globals.nodes):
+                addSuggestions("enter node type", Centry)
+            elif item == "link" and (items[-1] in globals.actors or 
+                                     items[-1] in globals.nodes):
                 addSuggestions("actors_only", Centry)
-            elif cs[-2] == "lan" and cs[-1] in globals.actors:
+            elif item == "lan" and (items[-1] in globals.actors or
+                                    items[-1] in globals.nodes):
                 addSuggestions("actors_only", Centry)
-            elif cs[-2] == "location" and cs[-1] in globals.actors:
+            elif item == "location" and (items[-1] in globals.actors or
+                                         items[-1] in globals.nodes):
                 addSuggestions("enter testbed", Centry)
             else:
-                for l in ["num", "os","link","lan","interfaces","location","topo"]:
-                    globals.app.addButton(l,Centry)
-                    globals.sbuttons[l]=1
+               addSuggestions("constraints_enter", Centry)
         else:
-            for l in ["num", "os","link","lan","interfaces","location","topo"]:
-                globals.app.addButton(l,Centry)
-                globals.sbuttons[l]=1
+            addSuggestions("constraints_enter", Centry)
         globals.app.stopLabelFrame()
+
+        for n in globals.nodes:
+            print "Node ", n
+        for a in globals.links:
+            for b in globals.links[a]:
+                print "Link ", a, " ", b
+        for a in globals.lans:
+            lanstring = ""
+            for b in globals.lans[a]:
+                lanstring += (b+ " ")
+            print "Lan ", a, ":",lanstring
+            
 
 def transitionBstate(ll):
 
@@ -306,31 +424,6 @@ def processBehavior():
         elif (globals.bstate == "emitted"):
             addSuggestions("enter event name", Bentry)
 
-#            elif chs[-1] in globals.actors:
-#                print "Found actor ",chs[-1]
-#                addSuggestions("enter action", Bentry)
-#                addSuggestions("actions_only", Bentry)
-#            elif chs[-1] in events:
-#                addSuggestions("globals.actors_only", Bentry)
-#            elif chs[-1] == "emit":
-#                addSuggestions("enter event name", Bentry)
-#            elif len(chs) >= 2:
-#                if (chs[-2] == "emit" and chs[-1] in events):
-#                    addSuggestions("behaviors_enter", Bentry)
-#                elif (chs[-2] in globals.actors and text.endswith(" ")):
-#                    actions[chs[-1]] = 1
-#                    addSuggestions("enter method", Bentry)
-#                elif len(chs) >= 3 and (chs[-3] in globals.actors):
-#                    addSuggestions("emit", Bentry)
-#                    addSuggestions("behaviors_enter", Bentry)
-#                else: 
-#                    addSuggestions("behaviors_enter", Bentry)
-#            else:
-#                print "Will add behaviors enter"
-#                addSuggestions("behaviors_enter", Bentry)
-#        else:
-#            print "Will add behaviors enter"
-#           addSuggestions("behaviors_enter", Bentry)
         globals.app.stopLabelFrame()
 
 def regenerateSuggestions(evtype):

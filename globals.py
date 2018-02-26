@@ -1,4 +1,5 @@
 app = None
+dialogue = None
 bdg_canvas = None
 topo_canvas = None
 bdg_handler = None
@@ -16,8 +17,14 @@ events=dict()
 actions=dict()
 methods=dict()
 
+nodes=dict()
+links=dict()
+lans=dict()
+
 sbuttons=dict()
 slabels=dict()
+dlabels=dict()
+dentries=dict()
 
 bstate = "start" # state of current behavior start, (waitd, wait) or (whene, when) or actor, actor, action, method, emit, done
 
