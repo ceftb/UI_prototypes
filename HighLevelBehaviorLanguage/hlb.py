@@ -6,47 +6,56 @@ try:
     from tkinter import filedialog
 except ImportError:
     import tkFileDialog
+import xir
+from xir import eq, choice, gt, ge, select
 
 # handle button events
 def press(button):
     print(button)
 
 def save(f):
-    f.write("{\nxpid: \"testex\",\n")
-    f.write("structure: {\n")
+    top = xir.Xir()
+    nodes = dict()
+    for n in globals.nodes:                                                                                                                        
+        node = top.structure.node({'name': n})
+        nodes[n] = node
 
-    for n in globals.nodes:
-        f.write("node:\n")
-        f.write("\tid: " + str(n) + '\n')
-        f.write("\tendpoints: [" + n + ']\n')
-        f.write("\tprops: {}\n")
-
-    l = 0
     for a in globals.links:
         for b in globals.links[a]:
-            f.write("link:\n")
-            f.write("\tid: link" + str(l) + '\n')
-            l=l+1
-            f.write("\tendpoints: [[" + a + "],[" + b +"\n")
-            f.write("\tprops: {}\n");
+            top.structure.connect([nodes[a], nodes[b]], {})
 
     for l in globals.lans:
-        f.write("net:\n")
-        f.write("\tid: " + str(n) + '\n')
-        f.write("\tnodes: [")
-        first = 0
+        lan = top.structure.node({'name': l, 'capability': select('switch')})
         for i in globals.lans[l]:
-                if first == 1:
-                    f.write(",")
-                first = 1
-                f.write(str(i));
-        f.write("]\n");
+            top.structure.connect([nodes[i], lan], {
+                    "stack": eq("ip")})
+ 
+    f.write(top.xir())
 
-    f.write("}\n\n")
-    f.write("behavior: {\n")
-    text = globals.app.getTextArea("behavior")        
-    f.write(text)
-    f.write("\n}\n\n")
+#            f.write("\tendpoints: [[" + a + "],[" + b +"\n")
+#            f.write("\tprops: {}\n");
+
+#    for l in globals.lans:
+#        f.write("net:\n")
+#        f.write("\tid: " + str(n) + '\n')
+#        f.write("\tnodes: [")
+#        first = 0
+#        for i in globals.lans[l]:
+#                if first == 1:
+#                    f.write(",")
+#                first = 1
+#                f.write(str(i));
+#        f.write("]\n");
+#
+#    f.write("}\n\n")
+#    f.write("behavior: {\n")
+#   text = globals.app.getTextArea("behavior")        
+#    f.write(text)
+#    f.write("\n}\n\n")
+
+
+
+
 
 def gather_bindings():
     print "Globals dialogue ",globals.dialogue
