@@ -14,7 +14,34 @@ def press(button):
 def save(f):
     f.write("{\nxpid: \"testex\",\n")
     f.write("structure: {\n")
-    globals.topo_handler.save(f)
+
+    for n in globals.nodes:
+        f.write("node:\n")
+        f.write("\tid: " + str(n) + '\n')
+        f.write("\tendpoints: [" + n + ']\n')
+        f.write("\tprops: {}\n")
+
+    l = 0
+    for a in globals.links:
+        for b in globals.links[a]:
+            f.write("link:\n")
+            f.write("\tid: link" + str(l) + '\n')
+            l=l+1
+            f.write("\tendpoints: [[" + a + "],[" + b +"\n")
+            f.write("\tprops: {}\n");
+
+    for l in globals.lans:
+        f.write("net:\n")
+        f.write("\tid: " + str(n) + '\n')
+        f.write("\tnodes: [")
+        first = 0
+        for i in globals.lans[l]:
+                if first == 1:
+                    f.write(",")
+                first = 1
+                f.write(str(i));
+        f.write("]\n");
+
     f.write("}\n\n")
     f.write("behavior: {\n")
     text = globals.app.getTextArea("behavior")        
@@ -30,13 +57,15 @@ def gather_bindings():
         globals.app.setStretch("both")
         globals.app.startScrollPane("Dialogue")
         globals.dialogue = True
-        globals.app.addLabel("bt1", "Please enter paths to executables for all the following actions and events.",0,0,2)
-        globals.app.addLabel("bt2", "Event executables should return 1 if the event occured, and 0 otherwise.",1,0,2)
     else:
         globals.app.openSubWindow("Dialogue")
         globals.app.openScrollPane("Dialogue")
         globals.app.removeButton("Submit")
-    globals.app.clearAllEntries()
+        globals.app.removeLabel("bt1")
+        globals.app.removeLabel("bt2")
+        globals.app.removeLabel("bt3")
+
+    globals.app.addLabel("bt1", "Please enter paths to executables for all the following actions.",0,0,2)
 
     for a in globals.dlabels:
         globals.app.removeLabel(a)
@@ -45,7 +74,7 @@ def gather_bindings():
     globals.dlabels.clear()
     globals.dentries.clear()
 
-    i = 2
+    i = 1
     ce = 0
     for a in globals.actions:
         globals.app.addLabel(a, a, i, 0)
@@ -54,6 +83,14 @@ def gather_bindings():
         globals.dentries["e"+str(ce)] = 1
         ce += 1
         i += 1
+
+    print "Events ", len(globals.events)
+
+    if len(globals.events)>0:
+        globals.app.addLabel("bt2", "Please enter paths to executables for all the following events.",i,0,2)
+        globals.app.addLabel("bt3", "Event executables should return 1 if the event occured, and 0 otherwise.",i+1,0,2)
+        i += 2
+
     for a in globals.events:
         globals.app.addLabel(a, a, i, 0)
         globals.dlabels[a] = 1
@@ -152,6 +189,14 @@ def addSuggestions(evtype, pb):
         globals.slabels[evtype] = 1
     globals.app.stopLabelFrame()
 
+def prefix(mystring):
+    p = 0
+    for i in str(mystring):
+        if i.isdigit():
+            return mystring[0:p-1]
+        p += 1
+    return None
+
 def processConstraints():
         print("Entered constraints")
         globals.app.openLabelFrame("Suggestions")
@@ -164,46 +209,82 @@ def processConstraints():
         text = globals.app.getTextArea("constraints")
         chs = text.split("\n")
         i=0
-        lnc = 0
+        lnc=1
         # parse out constraints and remember them
         # from every line including the last
         globals.events.clear()
         globals.constraints.clear()
         globals.links.clear()
         globals.lans.clear()
+        globals.lans["lan0"] = dict()
         globals.nodes.clear()
+        for a in globals.actors:
+            globals.nodes[a] = 0
         for c in chs:
             items = re.split("[\s,]",c.strip())
             item = items.pop(0)
             # parse out constraints
             if len(items) >= 2:
                 if (item == "num" or item == "os" or item == "location" or item == "interfaces" or item == "nodetype"):
-                    if items[0] in globals.actors:
+                    if items[0] in globals.nodes:
                         if items[0] not in globals.constraints:
                             globals.constraints[items[0]] = dict()
                         globals.constraints[items[0]][item] = items[1]        
                 if (item == "num"):
+                    globals.nodes.pop(items[0], None)
                     for i in range(0,int(items[1])):
-                        globals.nodes[items[0]+str(i)] = 1
+                        globals.nodes[items[0]+str(i)] = 0
                 if (item == "link"):
                     if len(items) >= 2:
                         a = items.pop(0)
                         b = items.pop(0)
-                        if ((a in globals.actors and b in globals.actors) or
-                            (a in globals.nodes and b in globals.nodes)):
+                        if a in globals.nodes and b in globals.nodes:
                             if a not in globals.links:
                                 globals.links[a] = dict()
+                            # Take a and b out of lan0
                             globals.links[a][b] = ""
                             for i in items:
                                 globals.links[a][b] += (i + " ")
+                            globals.nodes[a] = 1
+                            globals.nodes[b] = 1
                 if (item == "lan"):
                     label = "lan" + str(lnc)
                     if label not in globals.lans:
                         globals.lans[label] = dict()
                     for i in items:
-                        if i in globals.actors or i in globals.nodes:
+                        if i in globals.nodes:
                             globals.lans[label][i] = 1
+                            globals.nodes[i] = 1
                     lnc = lnc + 1
+
+        # Now find all nodes that are not part of any link or lan and put them
+        # into one lan
+        for n in globals.nodes:
+            if globals.nodes[n] == 0:
+                globals.lans["lan0"][n] = 1
+                globals.nodes[n] = 2
+
+        # Then join this lan with a node that is the most similar to nodes in the lan
+        prefs = dict()
+        maxc = 0
+        maxp = ""
+        for n in globals.nodes:
+            if globals.nodes[n] == 2:
+                t = prefix(n)
+                if t not in prefs:
+                    prefs[t] = 1
+                else:
+                    prefs[t] += 1
+                    
+                if prefs[t] > maxc:
+                    maxc = prefs[t]
+                    maxp = t
+                            
+        for n in globals.nodes:
+            if globals.nodes[n] == 1 and prefix(n) == maxp:
+                globals.lans["lan0"][n] = 1
+                break
+
 
         # Go through last constraint line to see what we can suggest
         ll = chs.pop()
@@ -332,6 +413,11 @@ def transitionBstate(ll):
 def addactor(item):
 
     globals.actors[item] = 1
+    globals.nodes[item] = 1
+    if "lan0" not in globals.lans:
+        globals.lans["lan0"] = dict()
+    globals.lans["lan0"][item] = 1
+
     if ("actor"+str(globals.acn)) in globals.actors:
         globals.acn = globals.acn+1
 
