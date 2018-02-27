@@ -35,13 +35,15 @@ class HLBParser():
         
     def parse_stmt(self, statement):
         """Parses an HLB statement and returns a tuple: (triggers, actors, action, emit_events)
+        Values are returned as "None" if they cannot be extracted.
         """
         try:
             parsed = self.hlb_statement.parseString(statement)
         except ParseException as pe:
-            print("WARNING: Could not parse HLB statement:\n\t%s" % (statement))
+            #print("WARNING: Could not parse HLB statement:\n\t%s" % (statement))
             return(None, None, None, None, None)
-        return(parsed.t_events, parsed.actors, parsed.action, parsed.emit_events, parsed.wait_time)
+        return_tuple = (parsed.t_events, parsed.actors, parsed.action, parsed.emit_events, parsed.wait_time)
+        return(tuple(r if r != [] and r != "" else None for r in return_tuple))
 
     def extract_partial(self, partial):
         t_events, actors, action, emit_events, wait_time = self.parse_stmt(partial)
@@ -100,10 +102,14 @@ def testParser():
         print(line)
         (t_events, actors, action, e_events, wait_time) = parser.parse_stmt(line)
         if actors != None:
-            print("Trigger(s): %s" % t_events)
             print("Actors: %s" %  actors)        
+        if t_events != None:
+            print("Trigger(s): %s" % t_events)
+        if action != None:
             print("Action: %s" %  action)        
+        if e_events != None:
             print("Emit events: %s" % e_events)
+        if wait_time != None:
             print("Wait time: %s" % wait_time)
         parser.extract_partial(line)
     
