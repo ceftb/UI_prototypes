@@ -64,8 +64,7 @@ class dependencyGraphHandler(GraphCanvas, object):
             # Python 2
             super(dependencyGraphHandler, self).__init__(G, master=canvas, width=width, height=height, NodeClass=dgStyle, **kwargs)
 
-        self.pack() 
-        
+        self.pack()  
         self.parser = HLBParser()
     
     def setoffsets(self, xoffset=0, yoffset=0):
@@ -73,10 +72,32 @@ class dependencyGraphHandler(GraphCanvas, object):
         self.yoffset = yoffset
 
     def add_new_behavior(self, statement):
-        # XXX TODO Need to handle removals.
-        statement = statement.strip()
-        if statement not in self.added_behaviors:
-            self.added_behaviors.append(statement)
+        #statement = statement.strip()
+        #if statement not in self.added_behaviors:
+        #    self.added_behaviors.append(statement)
+        #else:
+        #    return
+        
+        # To handle removal, editing etc. we'll just redo the full graph
+        # each time.
+        self.clear()
+        self.G.clear()        
+        self.G.add_node(0)
+        self.G.node[0]['label'] = 'start'
+        self.G.node[0]['actors'] = []
+        self.G.node[0]['emits'] = ['startTrigger', 't0']
+        self.G.node[0]['triggeredby'] = []
+        self.G.node[0]['color'] = 'green'
+
+        for b in globals.behaviors:
+            self.add_stmt(globals.behaviors[b])
+        
+        self.plot(0)
+        #self._plot_additional(self.G.nodes())
+        #self._plot_additional([num_nodes])
+        #self.refresh()
+    
+    def add_stmt(self, statement):
         (t_events, actors, action, e_events, wait_time) = self.parser.parse_stmt(statement)
         if actors != None:	
             # We successfully parsed the statement.
@@ -89,6 +110,8 @@ class dependencyGraphHandler(GraphCanvas, object):
                     print("Triggered by wait of: %s" % wait_time)
                 else:
                     print("Triggered by start.")
+        else:
+            return
                     
         # Add node
         num_nodes = len(self.G)
@@ -105,6 +128,7 @@ class dependencyGraphHandler(GraphCanvas, object):
         if t_events != None:	
             self.G.node[num_nodes]['triggeredby'] = t_events
         else:	
+            print("Triggered by start.")
             self.G.node[num_nodes]['triggeredby'] = ['startTrigger']
         self.G.node[num_nodes]['color'] = 'blue'
         
@@ -113,18 +137,16 @@ class dependencyGraphHandler(GraphCanvas, object):
             for n in self.G.nodes():
                 for t in self.G.nodes[n]['triggeredby']:
                     if t.strip() == e:
-                        self.G.add_edge(num_nodes, n)
+                            self.G.add_edge(num_nodes, n)
                 
         # Go through triggeredby and make connections.
         for t in self.G.node[num_nodes]['triggeredby']:
             for n in self.G.nodes():
                 for e in self.G.nodes[n]['emits']:
                     if e.strip() == t:
-                        self.G.add_edge(n, num_nodes)
+                        if n not in self.G.neighbors(num_nodes):
+                            self.G.add_edge(num_nodes, n)
         
-        self._plot_additional(self.G.node[num_nodes])
-        self._plot_additional([num_nodes])
-        self.refresh()
 
     def add_dependency(self, name, connections=[]):
         if self.find_label(name) != None:

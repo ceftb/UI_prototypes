@@ -6,14 +6,21 @@ try:
     from tkinter import filedialog
 except ImportError:
     import tkFileDialog
-import xir
-from xir import eq, choice, gt, ge, select
+
+try:
+    import xir
+    from xir import eq, choice, gt, ge, select
+    NOXIR=False
+except ImportError:
+    NOXIR=True
 
 # handle button events
 def press(button):
     print(button)
 
 def save(f):
+    if NOXIR:
+        return
     top = xir.Xir()
     nodes = dict()
     for n in globals.nodes:                                                                                                                        
@@ -58,7 +65,7 @@ def save(f):
 
 
 def gather_bindings():
-    print "Globals dialogue ",globals.dialogue
+    print("Globals dialogue %s" %globals.dialogue)
     if (globals.dialogue == None):
         globals.app.startSubWindow("Dialogue",modal=True)
         globals.app.setGeometry("400x400")
@@ -93,7 +100,7 @@ def gather_bindings():
         ce += 1
         i += 1
 
-    print "Events ", len(globals.events)
+    print("Events %d"% len(globals.events))
 
     if len(globals.events)>0:
         globals.app.addLabel("bt2", "Please enter paths to executables for all the following events.",i,0,2)
@@ -300,7 +307,7 @@ def processConstraints():
         ll = chs.pop()
         items = re.split("[\s,]",ll.strip())
         item = items.pop(0)
-        print "Len ", len(items), " item ", item
+        print("Len %d item %s"%(len(items),item))
         if item in ["num", "os","nodetype", "interfaces", "location", "link","lan"] and len(items) == 0:
             addSuggestions("actors_only", Centry)
         elif len(items) >= 1:
@@ -328,15 +335,15 @@ def processConstraints():
         globals.app.stopLabelFrame()
 
         for n in globals.nodes:
-            print "Node ", n
+            print("Node %s" % n)
         for a in globals.links:
             for b in globals.links[a]:
-                print "Link ", a, " ", b
+                print("Link %s-%s"% (a,b))
         for a in globals.lans:
             lanstring = ""
             for b in globals.lans[a]:
                 lanstring += (b+ " ")
-            print "Lan ", a, ":",lanstring
+            print("Lan %s:%s" %( a,lanstring))
             
 
 def transitionBstate(ll):
@@ -440,7 +447,7 @@ def addactor(item):
     
 
 def processBehavior():
-        print("Entered behavior")
+        #print("Entered behavior")
         globals.app.openLabelFrame("Suggestions")
         for t in globals.sbuttons:
             globals.app.removeButton(t)
