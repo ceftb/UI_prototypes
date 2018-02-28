@@ -250,7 +250,6 @@ def processConstraints():
                         if a in globals.nodes and b in globals.nodes:
                             if a not in globals.links:
                                 globals.links[a] = dict()
-                            # Take a and b out of lan0
                             globals.links[a][b] = ""
                             for i in items:
                                 globals.links[a][b] += (i + " ")
@@ -274,26 +273,28 @@ def processConstraints():
                 globals.nodes[n] = 2
 
         # Then join this lan with a node that is the most similar to nodes in the lan
-        prefs = dict()
-        maxc = 0
-        maxp = ""
-        for n in globals.nodes:
-            if globals.nodes[n] == 2:
-                t = prefix(n)
-                if t not in prefs:
-                    prefs[t] = 1
-                else:
-                    prefs[t] += 1
+        if (len(globals.lans["lan0"]) > 0):
+            prefs = dict()
+            maxc = 0
+            maxp = ""
+            for n in globals.nodes:
+                if globals.nodes[n] == 2:
+                    t = prefix(n)
+                    if t not in prefs:
+                        prefs[t] = 1
+                    else:
+                        prefs[t] += 1
                     
-                if prefs[t] > maxc:
-                    maxc = prefs[t]
-                    maxp = t
+                    if prefs[t] > maxc:
+                        maxc = prefs[t]
+                        maxp = t
                             
-        for n in globals.nodes:
-            if globals.nodes[n] == 1 and prefix(n) == maxp:
-                globals.lans["lan0"][n] = 1
-                break
-
+            for n in globals.nodes:
+                if globals.nodes[n] == 1 and prefix(n) == maxp:
+                    globals.lans["lan0"][n] = 1
+                    break
+        else:
+            globals.lans.pop("lan0", None)
 
         # Go through last constraint line to see what we can suggest
         ll = chs.pop()
