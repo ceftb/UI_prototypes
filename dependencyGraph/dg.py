@@ -28,7 +28,7 @@ class dgStyle(NodeClass):
         # Figure out what size the text we want is.
         label_txt = data.get('label', None)
         if label_txt:
-            font = Font(family="Purisa", size=12)
+            font = Font(family="Helvetica", size=12)
             h = font.metrics("linespace")
             w = font.measure(label_txt)
         else:
@@ -70,75 +70,66 @@ class dependencyGraphHandler(GraphCanvas, object):
     def setoffsets(self, xoffset=0, yoffset=0):
         self.xoffset = xoffset
         self.yoffset = yoffset
-
-    def add_new_behavior(self, statement):
-        #statement = statement.strip()
-        #if statement not in self.added_behaviors:
-        #    self.added_behaviors.append(statement)
-        #else:
-        #    return
         
-        # To handle removal, editing etc. we'll just redo the full graph
-        # each time.
-        self.clear()
-        self.G.clear()        
-        self.G.add_node(0)
-        self.G.node[0]['label'] = 'start'
-        self.G.node[0]['actors'] = []
-        self.G.node[0]['emits'] = ['startTrigger', 't0']
-        self.G.node[0]['triggeredby'] = []
-        self.G.node[0]['color'] = 'green'
-
+    def dict_from_behaviors(self):
+        # Creates a graph from the current listed behaviors.
+        bdict = {}
         for b in globals.behaviors:
-            self.add_stmt(globals.behaviors[b])
-        
-        self.plot(0)
-        #self._plot_additional(self.G.nodes())
-        #self._plot_additional([num_nodes])
-        #self.refresh()
-    
-    def add_stmt(self, statement):
-        (t_events, actors, action, e_events, wait_time) = self.parser.parse_stmt(statement)
-        if actors != None:	
-            # We successfully parsed the statement.
-            if t_events != None and wait_time != None:
-                print("We have a when/wait statement.")
-            else:	
-                if t_events != None:
-                    print("Triggered by: %s" % t_events)
-                elif wait_time != None:	
-                    print("Triggered by wait of: %s" % wait_time)
-                else:
-                    print("Triggered by start.")
-        else:
-            return
-                    
-        # Add node
+            statement = globals.behaviors[b]
+            (t_events, actors, action, e_events, wait_time) = self.parser.parse_stmt(statement)
+            try:
+                action = ''.join(action)
+            except TypeError:
+                pass
+            if actors == None:	
+                # We failed to parse the statement, so skip it.
+                continue
+            if t_events == None:
+                t_events = ['startTrigger']
+            if e_events == None:
+                e_events = []
+
+            # action = [[t_events], [e_events], [actors]]
+            if action in bdict:
+                i = 0
+                for tup in bdict[action]:
+                    if set(t_events) == set(tup[0]) and set(e_events) == set(tup[1]):
+                        bdict[action][i][2] = list(set(bdict[action][i][2] + actors))
+                    i = i + 1
+            else:
+                # easy add, we know we have no duplicates.
+                bdict[action] = []
+                bdict[action].append([list(set(t_events)),list(set(e_events)), list(set(actors))])
+
+        return bdict
+   
+    def add_new_node(self, actors, action, e_events, t_events):     
+        # Add node to new graph
         num_nodes = len(self.G)
         self.G.add_node(num_nodes)
-        self.G.node[num_nodes]['actors'] = actors
+        self.G.node[num_nodes]['actors'] = list(set(actors))
         try:
             self.G.node[num_nodes]['label'] = ''.join(action)
         except TypeError:
             self.G.node[num_nodes]['label'] = action
         if e_events != None:
-            self.G.node[num_nodes]['emits'] = e_events
+            self.G.node[num_nodes]['emits'] = list(set(e_events))
         else:
             self.G.node[num_nodes]['emits'] = []
         if t_events != None:	
-            self.G.node[num_nodes]['triggeredby'] = t_events
+            self.G.node[num_nodes]['triggeredby'] = list(set(t_events))
         else:	
             print("Triggered by start.")
             self.G.node[num_nodes]['triggeredby'] = ['startTrigger']
         self.G.node[num_nodes]['color'] = 'blue'
-        
-        # Go through emits and make connections.
+    
+        # self.Go through emits and make connections.
         for e in self.G.node[num_nodes]['emits']:
             for n in self.G.nodes():
                 for t in self.G.nodes[n]['triggeredby']:
                     if t.strip() == e:
-                            self.G.add_edge(num_nodes, n)
-                
+                        self.G.add_edge(num_nodes, n)
+            
         # Go through triggeredby and make connections.
         for t in self.G.node[num_nodes]['triggeredby']:
             for n in self.G.nodes():
@@ -146,7 +137,62 @@ class dependencyGraphHandler(GraphCanvas, object):
                     if e.strip() == t:
                         if n not in self.G.neighbors(num_nodes):
                             self.G.add_edge(num_nodes, n)
+        return num_nodes
+    
+
+    def plot_changes(self, newdict):
+        # First go through and remove nodes that have disappeared.
+        remove_nodes = []
+        for n in self.G:
+            found = False
+            Glabel = self.G[n].get('label', 'XXNONEXX')
+            if Glabel in newdict:
+                i = 0
+                for tup in newdict[Glabel]:
+                    if set(self.G[n]['triggeredby']) == set(tup[0]) and set(self.G[n]['e_events']) == set(tup[1]):
+                        found = True
+                        self.G[n]['actors'] = list(set(newdict[Glabel][i][2]))
+                        break
+                    i = i + 1
+            if found:
+                # Remove the found info from the newdict since we don't want to add duplicate nodes.
+                newdict[action].delete(tup)
+                if len (newdict[action]) == 0:
+                    newdict.delete(action)
+            if not found and n != 0:
+                # Remove node if it's not in our new graph and not our start node.
+                remove_nodes.append(n)
+    
+        for n in remove_nodes:
+            self.remove_node(n)
+        if len(remove_nodes) > 0:
+            #XXX TODO this should be a refresh, not a full replot.
+            self.plot(0)
+            self._plot_additional(self.G.nodes())
         
+        new = []
+        for label in newdict:
+            for tup in newdict[label]:
+                # Add this new node to our data graph and plot list.
+                new_id = self.add_new_node(set(tup[2]), label, set(tup[1]), set(tup[0]))
+                new.append(new_id)
+
+        if len(new) > 0:
+            self._plot_additional(new)
+    
+        #self.refresh()
+
+    def add_new_behavior(self, statement):
+        # Create new graph:
+        new = self.dict_from_behaviors()
+        self.plot_changes(new)
+        
+        
+        #self.plot(0)
+        #self._plot_additional(self.G.nodes())
+        #self._plot_additional([num_nodes])
+        #self.refresh()
+    
 
     def add_dependency(self, name, connections=[]):
         if self.find_label(name) != None:

@@ -361,6 +361,18 @@ class GraphCanvas(tk.Canvas):
     def onNodeKey(self, event):	
         pass
     
+    def remove_node(self, data_node_id):	
+        # Remove it from our data graph
+        self.G.remove_node(data_node_id)
+        
+        # Find the disp_node id.
+        for n in self.dispG:
+            if self.dispG[n].get('G_id', -1) == data_node_id:
+                hide_node(n)
+                return
+        print("Warning: Removed node from data, but did not find display node.")
+        
+    
     def hide_node(self, disp_node):
         for n, m, d in self.dispG.edges(disp_node, data=True):
             d['token'].delete()
@@ -389,9 +401,9 @@ class GraphCanvas(tk.Canvas):
         if w == 0:
             w = int(self['width'])/2
             h = int(self['height'])/2
-        #print("Measured canvas w/h: %dx%d" % (w*2,h*2))
-        delta_x = w - x
-        delta_y = h - y
+        print("Measured canvas w/h: %dx%d" % (w*2,h*2))
+        delta_x = w + x
+        delta_y = h + y
         
         self.move(tk.ALL, delta_x, delta_y)
     
