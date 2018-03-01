@@ -29,20 +29,20 @@ class dgStyle(NodeClass):
         label_txt = data.get('label', None)
         if label_txt:
             font = Font(family="Helvetica", size=12)
-            h = font.metrics("linespace")
-            w = font.measure(label_txt)
+            h = font.metrics("linespace") + 1
+            w = font.measure(label_txt) + 2
         else:
             w=20
             h=20
         self.config(width=w, height=h)
-        marker_options = {'fill': data.get('color','red'), 'outline':    'black'}
+        marker_options = {'fill': data.get('color','blue'), 'outline': 'white'}
         
         if data.get('circle', None):
-            self.create_oval(0,0,w,h, **marker_options)
+            self.create_oval(0,0,w*2,h*2, **marker_options)
         else:
             self.create_rectangle(0,0,w,h, **marker_options)
-            if label_txt:
-                self.create_text(w/2, h/2, text=label_txt)
+        if label_txt:
+            self.create_text(w/2, h/2, text=label_txt, font=font, fill="white")
 
 class dependencyGraphHandler(GraphCanvas, object):
     added_behaviors = []
@@ -50,11 +50,12 @@ class dependencyGraphHandler(GraphCanvas, object):
     def __init__(self, canvas, width=0, height=0, **kwargs):
         G = nx.Graph()
         G.add_node(0)
-        G.node[0]['label'] = 'start'
+        G.node[0]['label'] = '*'
         G.node[0]['actors'] = []
         G.node[0]['emits'] = ['startTrigger', 't0']
         G.node[0]['triggeredby'] = []
         G.node[0]['color'] = 'green'
+        G.node[0]['circle'] = True
         #G.add_edge(0,1)
         
         try:
@@ -64,6 +65,7 @@ class dependencyGraphHandler(GraphCanvas, object):
             # Python 2
             super(dependencyGraphHandler, self).__init__(G, master=canvas, width=width, height=height, NodeClass=dgStyle, **kwargs)
 
+        #self._draw_node((width, height), 0)
         self.pack()  
         self.parser = HLBParser()
     

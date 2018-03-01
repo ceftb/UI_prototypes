@@ -45,6 +45,8 @@ class GraphCanvas(tk.Canvas):
         self.master = master
         self.xoffset = xoffset
         self.yoffset = yoffset
+        self.width = int(width)
+        self.height = int(height)
                 
         self._drag_data = {'x': 0, 'y': 0, 'item': None}
         self._pan_data  = (None, None)
@@ -72,8 +74,8 @@ class GraphCanvas(tk.Canvas):
         #print("(0,0) at (%d,%d)" % (self.x0, self.y0))
         
         self._plot_graph(graph)
-        
         self.center_on_node(home_node or graph.nodes()[0])
+        
         # Add bindings for clicking.
         self.tag_bind('node', '<ButtonPress-1>', self.onNodeButtonPress)
         self.tag_bind('node', '<ButtonRelease-1>', self.onNodeButtonRelease)
@@ -150,9 +152,10 @@ class GraphCanvas(tk.Canvas):
             
     def _draw_node(self, coord, data_node):
         (x,y) = coord
-        if len(self.G) == 1:
-            return 0
-        data = self.G.node[data_node]
+        #if len(self.G) == 1:
+        #    return 0
+        print("Pulling data on node %d" % data_node)
+        data = self.G.nodes(data=True)[data_node]
         
         for filter_lambda in self._node_filters:
             try:
@@ -385,12 +388,21 @@ class GraphCanvas(tk.Canvas):
         item.mark()
     
     def center_on_node(self, data_node):
-        #print("CENTERED ON NODE")
+        print("CENTERED ON NODE")
         try:
             disp_node = self._find_disp_node(data_node)
         except ValueError as e:
             #tkm.showerror("Message", "")
             #print("Unable to find center node?")
+            #w = self.winfo_width()/2
+            #h = self.winfo_height()/2
+            #if w == 0:
+            #    w = int(self['width'])/2
+            #    h = int(self['height'])/2
+            w = int(int(self.width)/2)
+            h = int(int(self.height)/2)
+            print("Moving by %d %d" % (w,h))
+            self.move(tk.ALL, w, h+self.yoffset)
             return
         x,y = self.coords(self.dispG.node[disp_node]['token_id'])
         
@@ -529,9 +541,9 @@ class GraphCanvas(tk.Canvas):
                     self.mark_edge(u_disp, v_disp, key)
     
     def _plot_graph(self, graph):
-        scale = min(self.winfo_width(), self.winfo_height())
-        if scale == 1:
-            scale = int(min(self['width'], self['height']))
+        scale = int(min(self.width, self.height))
+        if scale < 2:
+            scale = min(self.winfo_width(), self.winfo_height())
         scale = scale/100
         #scale -= 50
         if len(graph) > 1:
@@ -539,7 +551,7 @@ class GraphCanvas(tk.Canvas):
             for n in graph.nodes():
                 self._draw_node(layout[n]+20, n)
         else:
-            self._draw_node((scale/2, scale/2), graph.nodes()[0])
+            self._draw_node((scale/2, scale/2), 0)
         
         for fm, to in set(graph.edges()):
             self._draw_edge(fm, to)
@@ -565,9 +577,9 @@ class GraphCanvas(tk.Canvas):
             if(n in existing_data_nodes) and (m in existing_data_nodes):
                 grow_graph.remove_edge(n,m)
         
-        for n, degree in grow_graph.copy().degree():
-            if degree == 0:
-                grow_graph.remove_node(n)
+        #for n, degree in grow_graph.copy().degree():
+        #    if degree == 0:
+        #        grow_graph.remove_node(n)
         
         if len(grow_graph.nodes()) == 0:
             return
@@ -576,7 +588,7 @@ class GraphCanvas(tk.Canvas):
             if n in existing_data_nodes:
                 continue
             self._draw_node(layout[n], n)
-        
+
         for n, m in set(grow_graph.edges()):
             if(n in existing_data_nodes) and (m in existing_data_nodes):
                 continue
@@ -636,14 +648,15 @@ class GraphCanvas(tk.Canvas):
         if len(G) == 0:
             return {}
         elif len(G) == 1:
-            return {G.nodes()[0]:(1,)*dim}
+            #return {G.nodes()[0]:(1,)*dim}
+            return{0:(1,)*dim}
         
         A = nx.to_numpy_matrix(G)
         nnodes,_ = A.shape
         
         # Occupy 2/3s of the window 
         if fixed is not None:
-            k = (min(self.winfo_width(), self.winfo_height())*.66)/np.sqrt(nnodes)
+            k = (min(self.width, self.height)*.66)/np.sqrt(nnodes)
         else:
             k = None
         
