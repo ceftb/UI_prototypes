@@ -64,29 +64,21 @@ def save_routes():
         if updates == 0:
             break
 
-        globals.addresses.clear()
-
-        for a in globals.links:
-            for b in globals.links[a]:
-                if a not in globals.addresses:
-                    globals.addresses[a] = dict()
-                globals.addresses[a][globals.links[a][b]] = 1
-
-        for l in globals.lans:
-            for i in globals.lans[l]:
-                if i not in globals.addresses:
-                    globals.addresses[i] = dict()
-                globals.addresses[i][globals.lans[l][i]] = 1
-
-
         f = open("setup.txt", "w")
+
+        for a in globals.addresses:
+            print "Node ",a
+            for b in globals.addresses[a]:
+                print "From ",a," add ",b
+                f.write("address "+a+" "+b+"\n")
+
         for a in routes:
             for b in routes[a]:
                 if routes[a][b]['h'] > 1:
                     c = routes[a][b]['n']
-                    for i in addresses[a]:
-                        for j in addresses[b]:
-                            f.write("route "+globals.addresses[a][i]+" "+globals.addresses[b][j] + " "+routes[a][b]['n'])
+                    for i in globals.addresses[a]:
+                        for j in globals.addresses[b]:
+                            f.write("route "+i+" "+j + " "+str(routes[a][b]['n'])+"\n")
         
 
 
@@ -94,21 +86,32 @@ def save_docker(f):
     # decide on lan IPs
     nets = dict()
     nc = 0
-    savelinks = globals.links
+    savelinks = globals.links.keys()
     for a in savelinks:
-        for b in savelinks[a]:
-            globals.links[a][b] = "172.1." + str(nc)
-            nets[globals.links[a][b]] = 1            
+        for b in globals.links[a]:
+            add1 = "172.1." + str(nc)
+            globals.links[a][b] = add1
+            nets[add1] = 1            
+            if a not in globals.addresses:
+                globals.addresses[a] = dict()
+            globals.addresses[a][add1+".1"] = 1
             if b not in globals.links:
                 globals.links[b] = dict()
-            globals.links[b][a] = "172.1." + str(nc)
-            nets[globals.links[b][a]] = 2
+            globals.links[b][a] = add1
+            nets[add1] = 2
+            if b not in globals.addresses:
+                globals.addresses[b] = dict()
+            globals.addresses[b][add1 + ".2"] = 1
             nc += 1
 
     for l in globals.lans:
         lc = 1
         for i in globals.lans[l]:
-            globals.lans[l][i] = "172.1." + str(nc) + "." + str(lc)
+            add1 = "172.1." + str(nc) + "." + str(lc)
+            globals.lans[l][i] = add1
+            if i not in globals.addresses:
+                globals.addresses[i] = dict()
+            globals.addresses[i][add1] = 1
             lc += 1
         nets[l] = "172.1." + str(nc)
         nc += 1
@@ -129,12 +132,12 @@ def save_docker(f):
     f.write("\n\nnetworks:\n")
     for a in globals.links:
         for b in globals.links[a]:
-            f.write(" link-" + a + "-" + b + ":\n  driver: bridge\n  ipam:\n   driver: default\n   config:\n   -\n     subnet: "+globals.links[a][b]+".0/24\n\n")
+            if (nets[globals.links[a][b]] == 1):
+                f.write(" link-" + a + "-" + b + ":\n  driver: bridge\n  ipam:\n   driver: default\n   config:\n   -\n     subnet: "+globals.links[a][b]+".0/24\n\n")
 
             
     for l in globals.lans:
         f.write(" " + l +  ":\n  driver: bridge\n  ipam:\n   driver: default\n   config:\n   -\n     subnet: "+nets[l]+".0/24\n\n")
-        break
 
     f.close()
     save_routes()
@@ -257,8 +260,8 @@ def tbFunc(button):
     elif (button == "Submit"):
         # take and save all the input
         globals.app.hideSubWindow("Dialogue")
-        file_path = tkFileDialog.asksaveasfile(mode='w', defaultextension=".xir")
-        save(file_path)
+        #file_path = tkFileDialog.asksaveasfile(mode='w', defaultextension=".xir")
+        #save(file_path)
         f = open("docker-compose.yml", "w")
         save_docker(f)
     pass
