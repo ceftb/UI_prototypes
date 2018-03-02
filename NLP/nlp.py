@@ -108,15 +108,15 @@ class nlpHandler():
         cond_hlb, cond_trigger = self.hlbify(cond_actor, cond_action, cond_object, actors=findEntities(self.dict(cond_clauses[0][0])), objects=findEntities(self.dict(cond_clauses[0][0]),sub=False, obj=True))
         
         if clause_action_dep == "<<STARTS BEFORE MAIN CLAUSE>>":
-            main_hlb = "WHEN %s %s EMIT %s" % (cond_trigger,main_hlb,main_trigger)
-            cond_hlb = "%s EMIT %s" %(cond_hlb, cond_trigger)
+            main_hlb = "WHEN %s %s EMIT %s\n" % (cond_trigger,main_hlb,main_trigger)
+            cond_hlb = "%s EMIT %s\n" %(cond_hlb, cond_trigger)
         elif clause_action_dep == "<<STARTS AFTER MAIN CLAUSE>>":
             main_hlb = "%s EMIT %s" %(main_hlb, main_trigger)
-            cond_hlb = "WHEN %s %s EMIT %s" % (main_trigger, cond_hlb, cond_trigger)
+            cond_hlb = "WHEN %s %s EMIT %s\n" % (main_trigger, cond_hlb, cond_trigger)
         else:
             # We want to start these at the same time??
             cond_hlb = "WAIT X%d %s EMIT %s" % (self.timeindex, cond_hlb, cond_trigger)
-            main_hlb = "WAIT X%d %s EMIT %s" % (self.timeindex, main_hlb, main_trigger)
+            main_hlb = "WAIT X%d %s EMIT %s\n" % (self.timeindex, main_hlb, main_trigger)
             self.timeindex = self.timeindex + 1
         
         return_stmt = ""
