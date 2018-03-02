@@ -18,9 +18,131 @@ except ImportError:
 def press(button):
     print(button)
 
+
+def save_routes():
+    routes = dict()
+
+    for a in globals.links:
+        for b in globals.links[a]:
+            if a not in routes:
+                routes[a] = dict()
+            routes[a][b] = dict()
+            routes[a][b]['n'] = b
+            routes[a][b]['h'] = 1
+            if b not in routes:
+                routes[b] = dict()
+            routes[b][a] = dict()
+            routes[b][a]['n'] = a
+            routes[b][a]['h'] = 1
+
+    for l in globals.lans:
+        for a in globals.lans[l]:
+            for b in globals.lans[l]:
+                if a == b:
+                    continue
+                if a not in routes:
+                    routes[a] = dict()
+                routes[a][b] = dict()
+                routes[a][b]['n'] = b
+                routes[a][b]['h'] = 1
+
+    while True:
+        updates = 0
+        for a in routes:
+            for b in routes[a]:
+                for c in routes[a]:
+                    if c == b:
+                        continue
+                    if routes[a][b]['h'] > 1:
+                        continue
+                    if c not in routes[b] or (c in routes[b] and routes[b][c]['h'] > routes[a][c]['h']+1):
+                        if c not in routes[b]:
+                            routes[b][c] = dict()
+                        routes[b][c]['n'] = a
+                        routes[b][c]['h'] = routes[a][c]['h']+1
+                        updates += 1
+        if updates == 0:
+            break
+
+        globals.addresses.clear()
+
+        for a in globals.links:
+            for b in globals.links[a]:
+                if a not in globals.addresses:
+                    globals.addresses[a] = dict()
+                globals.addresses[a][globals.links[a][b]] = 1
+
+        for l in globals.lans:
+            for i in globals.lans[l]:
+                if i not in globals.addresses:
+                    globals.addresses[i] = dict()
+                globals.addresses[i][globals.lans[l][i]] = 1
+
+
+        f = open("setup.txt", "w")
+        for a in routes:
+            for b in routes[a]:
+                if routes[a][b]['h'] > 1:
+                    c = routes[a][b]['n']
+                    for i in addresses[a]:
+                        for j in addresses[b]:
+                            f.write("route "+globals.addresses[a][i]+" "+globals.addresses[b][j] + " "+routes[a][b]['n'])
+        
+
+
+def save_docker(f):
+    # decide on lan IPs
+    nets = dict()
+    nc = 0
+    savelinks = globals.links
+    for a in savelinks:
+        for b in savelinks[a]:
+            globals.links[a][b] = "172.1." + str(nc)
+            nets[globals.links[a][b]] = 1            
+            if b not in globals.links:
+                globals.links[b] = dict()
+            globals.links[b][a] = "172.1." + str(nc)
+            nets[globals.links[b][a]] = 2
+            nc += 1
+
+    for l in globals.lans:
+        lc = 1
+        for i in globals.lans[l]:
+            globals.lans[l][i] = "172.1." + str(nc) + "." + str(lc)
+            lc += 1
+        nets[l] = "172.1." + str(nc)
+        nc += 1
+
+    f.write("version: '3'\nservices:\n");
+    for a in globals.nodes:
+        f.write("\n "+a+":\n  build:\n   dockerfile: custom.dock\n   context: .\n  command: /bin/setroutes.pl\n  privileged: true\n  networks:\n")
+        if a in globals.links:
+            for b in globals.links[a]:
+                f.write("   link-" + a + "-" + b + ":\n    ipv4_address: " + globals.links[a][b] + "." + str(nets[globals.links[a][b]]) + "\n")
+                nets[globals.links[a][b]] += 1
+
+        for l in globals.lans:
+            if a in globals.lans[l]:
+                f.write("   " + l + ":\n    ipv4_address: " + globals.lans[l][a] + "\n")
+
+        
+    f.write("\n\nnetworks:\n")
+    for a in globals.links:
+        for b in globals.links[a]:
+            f.write(" link-" + a + "-" + b + ":\n  driver: bridge\n  ipam:\n   driver: default\n   config:\n   -\n     subnet: "+globals.links[a][b]+".0/24\n\n")
+
+            
+    for l in globals.lans:
+        f.write(" " + l +  ":\n  driver: bridge\n  ipam:\n   driver: default\n   config:\n   -\n     subnet: "+nets[l]+".0/24\n\n")
+        break
+
+    f.close()
+    save_routes()
+
 def save(f):
     if NOXIR:
         return
+
     top = xir.Xir()
     nodes = dict()
     for n in globals.nodes:                                                                                                                        
@@ -38,6 +160,8 @@ def save(f):
                     "stack": eq("ip")})
  
     f.write(top.xir())
+
+
 
 #            f.write("\tendpoints: [[" + a + "],[" + b +"\n")
 #            f.write("\tprops: {}\n");
@@ -95,7 +219,8 @@ def gather_bindings():
     for a in globals.actions:
         globals.app.addLabel(a, a, i, 0)
         globals.dlabels[a] = 1
-        globals.app.addEntry("e"+str(ce),i,1)
+        globals.app.addEntry(a,i,1)
+        globals.app.setEntryChangeFunction(a, entryFunc)
         globals.dentries["e"+str(ce)] = 1
         ce += 1
         i += 1
@@ -119,6 +244,9 @@ def gather_bindings():
     globals.app.stopSubWindow()
     globals.app.showSubWindow("Dialogue")
 
+def entryFunc(entry):
+    print "Changed ",entry
+
 def tbFunc(button):
     print(button)
     if (button == "SAVE"):
@@ -131,6 +259,8 @@ def tbFunc(button):
         globals.app.hideSubWindow("Dialogue")
         file_path = tkFileDialog.asksaveasfile(mode='w', defaultextension=".xir")
         save(file_path)
+        f = open("docker-compose.yml", "w")
+        save_docker(f)
     pass
 
 def Bentry(button):
@@ -228,7 +358,6 @@ def processConstraints():
         lnc=1
         # parse out constraints and remember them
         # from every line including the last
-        globals.events.clear()
         globals.constraints.clear()
         globals.links.clear()
         globals.lans.clear()
@@ -456,6 +585,12 @@ def processBehavior():
             globals.app.removeLabel(t)
         globals.slabels.clear()
         text = globals.app.getTextArea("behavior")
+
+        # first capitalize keywords, perhaps remove this
+        text = text.replace("when","WHEN")
+        text = text.replace("wait","WAIT")
+        text = text.replace("emit","EMIT")
+
         bhs = text.split("\n")
         i=0
         # parse out events, globals.actors, actions and methods
@@ -527,6 +662,9 @@ def processBehavior():
         elif (globals.bstate == "emitted"):
             addSuggestions("enter event name", Bentry)
 
+        
+        
+        print text
         globals.app.stopLabelFrame()
 
 def regenerateSuggestions(evtype):

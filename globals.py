@@ -20,6 +20,7 @@ methods=dict()
 nodes=dict()
 links=dict()
 lans=dict()
+addresses=dict()
 
 sbuttons=dict()
 slabels=dict()
