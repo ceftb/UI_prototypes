@@ -316,9 +316,9 @@ class GraphCanvas(tk.Canvas):
             self._drag_data['x'] = event.x
             self._drag_data['y'] = event.y
         
-            G_id = self.dispG.node[item]['G_id']
+            G_id = self.dispG.nodes[item]['G_id']
         
-            self.onNodeSelected(G_id, self.G.node[G_id])
+            self.onNodeSelected(G_id, self.G.nodes[G_id])
     
     def onNodeSelected(self, node_name, node_data):
         pass
@@ -370,8 +370,8 @@ class GraphCanvas(tk.Canvas):
         
         # Find the disp_node id.
         for n in self.dispG:
-            if self.dispG[n].get('G_id', -1) == data_node_id:
-                hide_node(n)
+            if self.dispG.nodes[n].get('G_id', -1) == data_node_id:
+                self.hide_node(n)
                 return
         print("Warning: Removed node from data, but did not find display node.")
         
@@ -384,7 +384,7 @@ class GraphCanvas(tk.Canvas):
         self._graph_changed()
     
     def mark_node(self, disp_node):
-        item = self.dispG.node[disp_node]['token']
+        item = self.dispG.nodes[disp_node]['token']
         item.mark()
     
     def center_on_node(self, data_node):
@@ -404,7 +404,7 @@ class GraphCanvas(tk.Canvas):
             print("Moving by %d %d" % (w,h))
             self.move(tk.ALL, w, h+self.yoffset)
             return
-        x,y = self.coords(self.dispG.node[disp_node]['token_id'])
+        x,y = self.coords(self.dispG.nodes[disp_node]['token_id'])
         
         w = self.winfo_width()/2
         h = self.winfo_height()/2
@@ -510,8 +510,11 @@ class GraphCanvas(tk.Canvas):
         for u, d in self.dispG.nodes(data=True):
             item = d['token']
             node_name = d['G_id']
-            data = self.G.node[node_name]
-            item.render(data, node_name)
+            try:
+                data = self.G.nodes[node_name]
+                item.render(data, node_name)
+            except KeyError:
+                print("WARNING: Not rending %s" % node_name)
         
         self._graph_changed()
     
@@ -599,7 +602,10 @@ class GraphCanvas(tk.Canvas):
     def _graph_changed(self):
         for n, d in self.dispG.nodes(data=True):
             item = d['token']
-            if self.dispG.degree(n) == self.G.degree(d['G_id']):
+            print("Looking for disp and G:")
+            print(n)
+            print(d['G_id'])
+            if self.dispG.degree[n] == self.G.degree[d['G_id']]:
                 item.mark_complete()
             else:	
                 item.mark_incomplete()
@@ -614,7 +620,7 @@ class GraphCanvas(tk.Canvas):
         if len(disp_node) == 0:
             for f in self._node_filters:
                 try:
-                    show_flag = eval(f, {'u':data_node, 'd':self.G.node[data_node]})
+                    show_flag = eval(f, {'u':data_node, 'd':self.G.nodes[data_node]})
                 except Exception as e:
                     break
                 if show_flag == False:
