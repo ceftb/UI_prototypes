@@ -5,6 +5,7 @@ topo_canvas = None
 bdg_handler = None
 topo_handler = None
 nlp_handler = None
+nlp_help_str = "Type Natural English Language Here. E.g.:\n\"After the bad host begins the attack, the good host will deploy defences.\""
 
 acn=0
 tcn=0

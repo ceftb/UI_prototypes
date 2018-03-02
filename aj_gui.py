@@ -111,6 +111,7 @@ if NLPFLAG:
     from NLP.nlp import nlpHandler
     globals.nlp_handler = nlpHandler()
     globals.app.addScrolledTextArea("NLP Input")
+    globals.app.setTextArea("NLP Input",globals.nlp_help_str)
     globals.app.setTextAreaChangeFunction("NLP Input",globals.nlp_handler.nlpChanged)
 globals.app.stopTab()
 

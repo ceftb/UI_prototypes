@@ -14,6 +14,10 @@ class nlpHandler():
     submittedActors = []
     timeindex = 0
 
+    def __init__(self):
+        for s in self.splitText(globals.nlp_help_str):
+            self.sentences.append(s)
+
     def splitText(self, text):
         # Split the text up based on whatever delimeters we picked above.
         t = text
@@ -108,15 +112,15 @@ class nlpHandler():
         cond_hlb, cond_trigger = self.hlbify(cond_actor, cond_action, cond_object, actors=findEntities(self.dict(cond_clauses[0][0])), objects=findEntities(self.dict(cond_clauses[0][0]),sub=False, obj=True))
         
         if clause_action_dep == "<<STARTS BEFORE MAIN CLAUSE>>":
-            main_hlb = "WHEN %s %s EMIT %s\n" % (cond_trigger,main_hlb,main_trigger)
-            cond_hlb = "%s EMIT %s\n" %(cond_hlb, cond_trigger)
+            main_hlb = "WHEN %s %s EMIT %s" % (cond_trigger,main_hlb,main_trigger)
+            cond_hlb = "%s EMIT %s" %(cond_hlb, cond_trigger)
         elif clause_action_dep == "<<STARTS AFTER MAIN CLAUSE>>":
             main_hlb = "%s EMIT %s" %(main_hlb, main_trigger)
-            cond_hlb = "WHEN %s %s EMIT %s\n" % (main_trigger, cond_hlb, cond_trigger)
+            cond_hlb = "WHEN %s %s EMIT %s" % (main_trigger, cond_hlb, cond_trigger)
         else:
             # We want to start these at the same time??
             cond_hlb = "WAIT X%d %s EMIT %s" % (self.timeindex, cond_hlb, cond_trigger)
-            main_hlb = "WAIT X%d %s EMIT %s\n" % (self.timeindex, main_hlb, main_trigger)
+            main_hlb = "WAIT X%d %s EMIT %s" % (self.timeindex, main_hlb, main_trigger)
             self.timeindex = self.timeindex + 1
         
         return_stmt = ""
@@ -126,7 +130,7 @@ class nlpHandler():
             return_stmt = cond_hlb+'\n'
         if main_trigger not in self.submittedTriggers:
             self.submittedTriggers.append(main_trigger)
-            return_stmt = return_stmt + main_hlb
+            return_stmt = return_stmt + main_hlb+'\n'
         if return_stmt != "":
             return(return_stmt)
         else:
@@ -170,9 +174,9 @@ class nlpHandler():
 
     def expActionType(self, word):
         base = self.baseForm(word)
-        if base in ['start', 'begin', 'boot', 'commence', 'deploy', 'kick', 'trigger', 'launch']:
+        if base in ['start', 'begin', 'boot', 'commence', 'deploy', 'kick', 'trigger', 'launch', 'run']:
             return 'start'
-        if base in ['end', 'stop', 'finish', 'quit', 'die', 'close', 'exit']:
+        if base in ['end', 'stop', 'finish', 'quit', 'die', 'close', 'exit', 'halt', 'destroy']:
             return 'end'
         if base in ['if', 'be', 'will', 'can', 'have']:
             return 'check'
