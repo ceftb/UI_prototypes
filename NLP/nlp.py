@@ -2,32 +2,47 @@ import spacy
 import sys
 sys.path.append('../')
 import globals
+from spacy.lang.en.stop_words import STOP_WORDS
 from HighLevelBehaviorLanguage.hlb import *
 from NLP.nlplib import findEntities, findCondClauses, actionRelation
 
 class nlpHandler():
     sentences = []
     dict = spacy.load('en')
+    splitchars = ['!', '.', '\n', '?']
     submittedTriggers = []
     submittedActors = []
     timeindex = 0
 
+    def splitText(self, text):
+        # Split the text up based on whatever delimeters we picked above.
+        t = text
+        for d in self.splitchars:
+            t = t.replace(d, '|')
+        return(t.split('|'))
+
     def nlpChanged(self, widget):
         current_text = globals.app.getTextArea("NLP Input")
-        if len(current_text.split('.')) != len(self.sentences) and len(current_text.split('.')) > 1:
-            if len(current_text.split('.')) > len(self.sentences):
+        split_text = self.splitText(current_text)
+        if len(split_text) != len(self.sentences) and len(split_text) > 1:
+            if len(split_text) > len(self.sentences):
                 # We have a new sentence.
-                for sentence in current_text.split('.'):
+                for sentence in split_text:
                     if sentence.strip() not in  self.sentences and sentence.strip() != "":
                         print("New to process: %s" % sentence)
                         
                         tokens = self.dict(sentence)
                         
                         # Entities.
-                        entities = findEntities(tokens)
+                        entities = findEntities(tokens, sub=True, obj=False)
                         actors = []
                         for ent in entities:
-                            ent_str = ''.join(x for x in str(ent).title() if not x.isspace())
+                            ent_phrase = str(ent).split()
+                            print(ent_phrase)
+                            ent_phrase = [x for x in ent_phrase if x.lower() not in STOP_WORDS]
+                            ent_str = ' '.join(ent_phrase)
+                            ent_str = ''.join(x for x in ent_str.title() if not x.isspace())
+                            print(ent_str)
                             if ent_str not in self.submittedActors:
                                 globals.app.setTextArea("actor",ent_str+'\n', callFunction=actorentered)
                                 self.submittedActors.append(ent_str)
@@ -39,10 +54,10 @@ class nlpHandler():
                             print(suggested_hlb)
                             globals.app.setTextArea("behavior", suggested_hlb, callFunction=behaviorentered)
                         
-            elif len(current_text.split('.')) < len(self.sentences):
+            elif len(split_text) < len(self.sentences):
                 print("Do not handle erasures yet.")
                 # We have lost a sentence.
-            self.sentences = [s.strip() for s in current_text.split('.')]
+            self.sentences = [s.strip() for s in split_text]
     
     def generate_behavior(self, sentence, tokens, actors=[]):
         
@@ -77,7 +92,9 @@ class nlpHandler():
             print(main_action_relation)
             return None
         
-        main_hlb, main_trigger = self.hlbify(actor, action, object, actors=findEntities(self.dict(main_sen)))
+        for objents in findEntities(self.dict(main_sen),sub=False, obj=True):
+            print("OBJECT ENT: %s" % str(objents))
+        main_hlb, main_trigger = self.hlbify(actor, action, object, actors=findEntities(self.dict(main_sen)), objects=findEntities(self.dict(main_sen),sub=False, obj=True))
         #print("MAIN HLB: %s. TRIGGER: %s" % (main_hlb, main_trigger))
         
         try:
@@ -85,23 +102,21 @@ class nlpHandler():
             #print(clause_action_relation)
             cond_actor, cond_action, cond_object = clause_action_relation[0]
         except(ValueError, IndexError):
-            # We'll assume this is a wait.
-            stmt = "WAIT X%d %s EMIT %s\n" % (self.timeindex, main_hlb, main_trigger)
-            self.timeindex = self.timeindex + 1
+            stmt = "%s EMIT %s\n" % (main_hlb, main_trigger)
             return(stmt)
         
-        cond_hlb, cond_trigger = self.hlbify(cond_actor, cond_action, cond_object, actors=findEntities(self.dict(cond_clauses[0][0])))
+        cond_hlb, cond_trigger = self.hlbify(cond_actor, cond_action, cond_object, actors=findEntities(self.dict(cond_clauses[0][0])), objects=findEntities(self.dict(cond_clauses[0][0]),sub=False, obj=True))
         
         if clause_action_dep == "<<STARTS BEFORE MAIN CLAUSE>>":
-            main_hlb = "WHEN %s %s EMIT %s" % (cond_trigger,main_hlb,main_trigger)
-            cond_hlb = "%s EMIT %s" %(cond_hlb, cond_trigger)
+            main_hlb = "WHEN %s %s EMIT %s\n" % (cond_trigger,main_hlb,main_trigger)
+            cond_hlb = "%s EMIT %s\n" %(cond_hlb, cond_trigger)
         elif clause_action_dep == "<<STARTS AFTER MAIN CLAUSE>>":
             main_hlb = "%s EMIT %s" %(main_hlb, main_trigger)
-            cond_hlb = "WHEN %s %s EMIT %s" % (main_trigger, cond_hlb, cond_trigger)
+            cond_hlb = "WHEN %s %s EMIT %s\n" % (main_trigger, cond_hlb, cond_trigger)
         else:
             # We want to start these at the same time??
             cond_hlb = "WAIT X%d %s EMIT %s" % (self.timeindex, cond_hlb, cond_trigger)
-            main_hlb = "WAIT X%d %s EMIT %s" % (self.timeindex, main_hlb, main_trigger)
+            main_hlb = "WAIT X%d %s EMIT %s\n" % (self.timeindex, main_hlb, main_trigger)
             self.timeindex = self.timeindex + 1
         
         return_stmt = ""
@@ -117,12 +132,13 @@ class nlpHandler():
         else:
             return None
 
-    def hlbify(self, actor, action, object, actors=[]):
+    def hlbify(self, actor, action, object, actors=[], objects=[]):
         action_type = self.expActionType(action)
         shortest_actor_match = -1
         shortest_object_match = -1
         for act in actors:
-            a = ''.join(x for x in str(act).title() if not x.isspace())
+            a = ' '.join(x for x in str(act).split() if x.lower() not in STOP_WORDS)
+            a = ''.join(x for x in a.title() if not x.isspace())
             # This isn't a good match - we need to figure out the modifiers from the text.
             if actor.lower() in a.lower():
                 if shortest_actor_match < 0:
@@ -131,6 +147,9 @@ class nlpHandler():
                 elif shortest_actor_match <= len(a):
                     shortest_actor_match = len(a) 
                     actor = a
+        for act in objects:
+            a = ' '.join(x for x in str(act).split() if x.lower() not in STOP_WORDS)
+            a = ''.join(x for x in a.title() if not x.isspace())
             if object.lower() in a.lower():
                 if shortest_object_match < 0:
                     shortest_object_match = len(a)
@@ -142,7 +161,7 @@ class nlpHandler():
             script = action_type + object.title()
         else:
             script = action_type + actor.title()
-        return("%s %s" % (actor, script), "%sSignal" %(script))
+        return("%s %s" % (actor, script), "%sSig" %(script))
 
     def baseForm(self, word):
         tokens = self.dict(word)

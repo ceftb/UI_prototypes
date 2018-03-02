@@ -1,4 +1,6 @@
 import spacy
+from spacy.symbols import *
+from spacy.lang.en.stop_words import STOP_WORDS
 
 SUBJECTS = ["nsubj", "nsubjpass", "csubj", "csubjpass", "agent", "expl"]
 OBJECTS = ["pobj", "dobj", "dative", "attr", "oprd"]
@@ -178,12 +180,26 @@ def findCondClauses(tokens):
                 print("WARNING: Unhandled clause: %s" % clause)
     return clauses
         
-def findEntities(toks):	
+def findEntities(toks, sub=True, obj=False):	
     entities = []
     spans = list(toks.ents) + list(toks.noun_chunks)
     for span in spans:
-        if str(span.merge()).lower() not in ['we', 'i', 'us', 'they', 'them', 'it', 'itself']:
-            entities.append(span.merge())
+        is_nsubj = False
+        is_obj = False
+        for tok in span:
+            if tok.dep in set([nsubj, nsubjpass]):
+                is_nsubj = True
+            if tok.dep in set([dobj, iobj, pobj]):
+                is_obj = True
+        if is_obj:
+            print("OBJ span: %s" % str(span))
+        if is_nsubj:
+            print("SUB span: %s" % str(span))
+        if is_nsubj==sub and is_obj==obj:
+            if str(span.merge()).lower() not in ['we', 'i', 'us', 'they', 'them', 'it', 'itself']:
+            #ent_str = ' '.join(x for x in str(span).lower() if x not in STOP_WORDS)
+            #if str(span.merge()).lower() not in STOP_WORDS:
+                entities.append(span)
     return entities    
    
 def actionRelation(sen):   
