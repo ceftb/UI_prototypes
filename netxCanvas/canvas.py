@@ -45,6 +45,8 @@ class GraphCanvas(tk.Canvas):
         self.master = master
         self.xoffset = xoffset
         self.yoffset = yoffset
+        self.width = int(width)
+        self.height = int(height)
                 
         self._drag_data = {'x': 0, 'y': 0, 'item': None}
         self._pan_data  = (None, None)
@@ -72,8 +74,8 @@ class GraphCanvas(tk.Canvas):
         #print("(0,0) at (%d,%d)" % (self.x0, self.y0))
         
         self._plot_graph(graph)
-        
         self.center_on_node(home_node or graph.nodes()[0])
+        
         # Add bindings for clicking.
         self.tag_bind('node', '<ButtonPress-1>', self.onNodeButtonPress)
         self.tag_bind('node', '<ButtonRelease-1>', self.onNodeButtonRelease)
@@ -150,9 +152,10 @@ class GraphCanvas(tk.Canvas):
             
     def _draw_node(self, coord, data_node):
         (x,y) = coord
-        if len(self.G) == 1:
-            return 0
-        data = self.G.node[data_node]
+        #if len(self.G) == 1:
+        #    return 0
+        #print("Pulling data on node %d" % data_node)
+        data = self.G.nodes(data=True)[data_node]
         
         for filter_lambda in self._node_filters:
             try:
@@ -261,6 +264,8 @@ class GraphCanvas(tk.Canvas):
         self.winfo_toplevel().config(cursor='fleur')
     
     def onPanMotion(self, event):
+        if self._pan_data[0] == None or self._pan_data[1] == None:
+            return
         delta_x = event.x - self._pan_data[0]
         delta_y = event.y - self._pan_data[1]
         self.move(tk.ALL, delta_x, delta_y)
@@ -313,9 +318,9 @@ class GraphCanvas(tk.Canvas):
             self._drag_data['x'] = event.x
             self._drag_data['y'] = event.y
         
-            G_id = self.dispG.node[item]['G_id']
+            G_id = self.dispG.nodes[item]['G_id']
         
-            self.onNodeSelected(G_id, self.G.node[G_id])
+            self.onNodeSelected(G_id, self.G.nodes[G_id])
     
     def onNodeSelected(self, node_name, node_data):
         pass
@@ -367,8 +372,8 @@ class GraphCanvas(tk.Canvas):
         
         # Find the disp_node id.
         for n in self.dispG:
-            if self.dispG[n].get('G_id', -1) == data_node_id:
-                hide_node(n)
+            if self.dispG.nodes[n].get('G_id', -1) == data_node_id:
+                self.hide_node(n)
                 return
         print("Warning: Removed node from data, but did not find display node.")
         
@@ -381,7 +386,7 @@ class GraphCanvas(tk.Canvas):
         self._graph_changed()
     
     def mark_node(self, disp_node):
-        item = self.dispG.node[disp_node]['token']
+        item = self.dispG.nodes[disp_node]['token']
         item.mark()
     
     def center_on_node(self, data_node):
@@ -391,8 +396,17 @@ class GraphCanvas(tk.Canvas):
         except ValueError as e:
             #tkm.showerror("Message", "")
             #print("Unable to find center node?")
+            #w = self.winfo_width()/2
+            #h = self.winfo_height()/2
+            #if w == 0:
+            #    w = int(self['width'])/2
+            #    h = int(self['height'])/2
+            w = int(int(self.width)/2)
+            h = int(int(self.height)/2)
+            #print("Moving by %d %d" % (w,h))
+            self.move(tk.ALL, w, h+self.yoffset)
             return
-        x,y = self.coords(self.dispG.node[disp_node]['token_id'])
+        x,y = self.coords(self.dispG.nodes[disp_node]['token_id'])
         
         w = self.winfo_width()/2
         h = self.winfo_height()/2
@@ -498,8 +512,11 @@ class GraphCanvas(tk.Canvas):
         for u, d in self.dispG.nodes(data=True):
             item = d['token']
             node_name = d['G_id']
-            data = self.G.node[node_name]
-            item.render(data, node_name)
+            try:
+                data = self.G.nodes[node_name]
+                item.render(data, node_name)
+            except KeyError:
+                print("WARNING: Not rending %s" % node_name)
         
         self._graph_changed()
     
@@ -529,9 +546,9 @@ class GraphCanvas(tk.Canvas):
                     self.mark_edge(u_disp, v_disp, key)
     
     def _plot_graph(self, graph):
-        scale = min(self.winfo_width(), self.winfo_height())
-        if scale == 1:
-            scale = int(min(self['width'], self['height']))
+        scale = int(min(self.width, self.height))
+        if scale < 2:
+            scale = min(self.winfo_width(), self.winfo_height())
         scale = scale/100
         #scale -= 50
         if len(graph) > 1:
@@ -539,7 +556,7 @@ class GraphCanvas(tk.Canvas):
             for n in graph.nodes():
                 self._draw_node(layout[n]+20, n)
         else:
-            self._draw_node((scale/2, scale/2), graph.nodes()[0])
+            self._draw_node((scale/2, scale/2), 0)
         
         for fm, to in set(graph.edges()):
             self._draw_edge(fm, to)
@@ -550,7 +567,9 @@ class GraphCanvas(tk.Canvas):
         existing_data_nodes = set([ v['G_id'] for k,v in self.dispG.node.items() ])
         nodes = set(nodes).union(existing_data_nodes)
         grow_graph = self.G.subgraph(nodes).copy()
-         
+        
+        print(grow_graph)
+        
         fixed = {}
         for n,d in self.dispG.nodes(data=True):
             fixed[d['G_id']] = self.coords(n)
@@ -565,9 +584,9 @@ class GraphCanvas(tk.Canvas):
             if(n in existing_data_nodes) and (m in existing_data_nodes):
                 grow_graph.remove_edge(n,m)
         
-        for n, degree in grow_graph.copy().degree():
-            if degree == 0:
-                grow_graph.remove_node(n)
+        #for n, degree in grow_graph.copy().degree():
+        #    if degree == 0:
+        #        grow_graph.remove_node(n)
         
         if len(grow_graph.nodes()) == 0:
             return
@@ -576,7 +595,7 @@ class GraphCanvas(tk.Canvas):
             if n in existing_data_nodes:
                 continue
             self._draw_node(layout[n], n)
-        
+
         for n, m in set(grow_graph.edges()):
             if(n in existing_data_nodes) and (m in existing_data_nodes):
                 continue
@@ -587,7 +606,7 @@ class GraphCanvas(tk.Canvas):
     def _graph_changed(self):
         for n, d in self.dispG.nodes(data=True):
             item = d['token']
-            if self.dispG.degree(n) == self.G.degree(d['G_id']):
+            if self.dispG.degree[n] == self.G.degree[d['G_id']]:
                 item.mark_complete()
             else:	
                 item.mark_incomplete()
@@ -602,7 +621,7 @@ class GraphCanvas(tk.Canvas):
         if len(disp_node) == 0:
             for f in self._node_filters:
                 try:
-                    show_flag = eval(f, {'u':data_node, 'd':self.G.node[data_node]})
+                    show_flag = eval(f, {'u':data_node, 'd':self.G.nodes[data_node]})
                 except Exception as e:
                     break
                 if show_flag == False:
@@ -636,14 +655,15 @@ class GraphCanvas(tk.Canvas):
         if len(G) == 0:
             return {}
         elif len(G) == 1:
-            return {G.nodes()[0]:(1,)*dim}
+            #return {G.nodes()[0]:(1,)*dim}
+            return{0:(1,)*dim}
         
         A = nx.to_numpy_matrix(G)
         nnodes,_ = A.shape
         
         # Occupy 2/3s of the window 
         if fixed is not None:
-            k = (min(self.winfo_width(), self.winfo_height())*.66)/np.sqrt(nnodes)
+            k = (min(self.width, self.height)*.66)/np.sqrt(nnodes)
         else:
             k = None
         

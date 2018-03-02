@@ -29,33 +29,38 @@ class dgStyle(NodeClass):
         label_txt = data.get('label', None)
         if label_txt:
             font = Font(family="Helvetica", size=12)
-            h = font.metrics("linespace")
-            w = font.measure(label_txt)
+            h = font.metrics("linespace") + 1
+            w = font.measure(label_txt) + 2
         else:
             w=20
             h=20
         self.config(width=w, height=h)
-        marker_options = {'fill': data.get('color','red'), 'outline':    'black'}
+        marker_options = {'fill': data.get('color','blue'), 'outline': 'white'}
         
         if data.get('circle', None):
-            self.create_oval(0,0,w,h, **marker_options)
+            self.create_oval(0,0,w*3,w*3, **marker_options)
+            self.config(width=w*3, height=w*3)
+            if label_txt:
+                self.create_text(w*3/2, w*3/2, text=label_txt, font=font, fill="white")
         else:
             self.create_rectangle(0,0,w,h, **marker_options)
             if label_txt:
-                self.create_text(w/2, h/2, text=label_txt)
+                self.create_text(w/2, h/2, text=label_txt, font=font, fill="white")
 
 class dependencyGraphHandler(GraphCanvas, object):
     added_behaviors = []
     
     def __init__(self, canvas, width=0, height=0, **kwargs):
+        self.node_index = 2
+        self.dummy_node_needed = False
         G = nx.Graph()
         G.add_node(0)
-        G.node[0]['label'] = 'start'
+        G.node[0]['label'] = '*'
         G.node[0]['actors'] = []
-        G.node[0]['emits'] = ['startTrigger', 't0']
+        G.node[0]['e_events'] = ['startTrigger', 't0']
         G.node[0]['triggeredby'] = []
         G.node[0]['color'] = 'green'
-        #G.add_edge(0,1)
+        G.node[0]['circle'] = True
         
         try:
             # Python3
@@ -64,6 +69,7 @@ class dependencyGraphHandler(GraphCanvas, object):
             # Python 2
             super(dependencyGraphHandler, self).__init__(G, master=canvas, width=width, height=height, NodeClass=dgStyle, **kwargs)
 
+        #self._draw_node((width, height), 0)
         self.pack()  
         self.parser = HLBParser()
     
@@ -105,7 +111,9 @@ class dependencyGraphHandler(GraphCanvas, object):
    
     def add_new_node(self, actors, action, e_events, t_events):     
         # Add node to new graph
-        num_nodes = len(self.G)
+        #num_nodes = len(self.G)
+        num_nodes = self.node_index
+        self.node_index = self.node_index + 1
         self.G.add_node(num_nodes)
         self.G.node[num_nodes]['actors'] = list(set(actors))
         try:
@@ -113,9 +121,9 @@ class dependencyGraphHandler(GraphCanvas, object):
         except TypeError:
             self.G.node[num_nodes]['label'] = action
         if e_events != None:
-            self.G.node[num_nodes]['emits'] = list(set(e_events))
+            self.G.node[num_nodes]['e_events'] = list(set(e_events))
         else:
-            self.G.node[num_nodes]['emits'] = []
+            self.G.node[num_nodes]['e_events'] = []
         if t_events != None:	
             self.G.node[num_nodes]['triggeredby'] = list(set(t_events))
         else:	
@@ -124,7 +132,7 @@ class dependencyGraphHandler(GraphCanvas, object):
         self.G.node[num_nodes]['color'] = 'blue'
     
         # self.Go through emits and make connections.
-        for e in self.G.node[num_nodes]['emits']:
+        for e in self.G.node[num_nodes]['e_events']:
             for n in self.G.nodes():
                 for t in self.G.nodes[n]['triggeredby']:
                     if t.strip() == e:
@@ -133,7 +141,7 @@ class dependencyGraphHandler(GraphCanvas, object):
         # Go through triggeredby and make connections.
         for t in self.G.node[num_nodes]['triggeredby']:
             for n in self.G.nodes():
-                for e in self.G.nodes[n]['emits']:
+                for e in self.G.nodes[n]['e_events']:
                     if e.strip() == t:
                         if n not in self.G.neighbors(num_nodes):
                             self.G.add_edge(num_nodes, n)
@@ -143,44 +151,83 @@ class dependencyGraphHandler(GraphCanvas, object):
     def plot_changes(self, newdict):
         # First go through and remove nodes that have disappeared.
         remove_nodes = []
-        for n in self.G:
+        for n in self.G.nodes():
             found = False
-            Glabel = self.G[n].get('label', 'XXNONEXX')
+            Glabel = self.G.nodes[n].get('label', 'XXNONEXX')
             if Glabel in newdict:
                 i = 0
                 for tup in newdict[Glabel]:
-                    if set(self.G[n]['triggeredby']) == set(tup[0]) and set(self.G[n]['e_events']) == set(tup[1]):
+                    if set(self.G.nodes[n]['triggeredby']) == set(tup[0]) and set(self.G.nodes[n]['e_events']) == set(tup[1]):
                         found = True
-                        self.G[n]['actors'] = list(set(newdict[Glabel][i][2]))
+                        self.G.nodes[n]['actors'] = list(set(newdict[Glabel][i][2]))
                         break
                     i = i + 1
             if found:
                 # Remove the found info from the newdict since we don't want to add duplicate nodes.
-                newdict[action].delete(tup)
-                if len (newdict[action]) == 0:
-                    newdict.delete(action)
-            if not found and n != 0:
+                newdict[Glabel].remove(tup)
+                if len (newdict[Glabel]) == 0:
+                    del newdict[Glabel]
+            if not found and n != 0 and n != 1:
                 # Remove node if it's not in our new graph and not our start node.
+                print("REMOVING %s" % (Glabel))
                 remove_nodes.append(n)
     
         for n in remove_nodes:
             self.remove_node(n)
         if len(remove_nodes) > 0:
             #XXX TODO this should be a refresh, not a full replot.
-            self.plot(0)
-            self._plot_additional(self.G.nodes())
+            self.refresh()
+            #self.plot(0)
+            #self._plot_additional([0] + self.G.nodes())
         
         new = []
         for label in newdict:
+            print("ADDING %s" % label)
             for tup in newdict[label]:
                 # Add this new node to our data graph and plot list.
                 new_id = self.add_new_node(set(tup[2]), label, set(tup[1]), set(tup[0]))
+                print("Adding %s/%d" % (label, new_id)) 
                 new.append(new_id)
 
         if len(new) > 0:
             self._plot_additional(new)
     
-        #self.refresh()
+        print("Plotted addtional")
+    
+        # Check if everything's connected. If not, use self.dummy_node_needed
+        # to trigger needing the <UNKNOWN> trigger node.
+        have_known_trigger = []
+        have_no_trigger = []
+        for n,d in self.G.degree():
+            if n != 1 and n !=0:
+                if d==0 or (1 in self.G.nodes() and d==1 and n in self.G.neighbors(1)):
+                    have_no_trigger.append(n)
+                else:
+                    have_known_trigger.append(n)
+        if len(have_no_trigger) > 0:
+            plot_needed = False
+            if 1 not in self.G.nodes():
+                print("Adding node 1")
+                plot_needed = True
+                self.G.add_node(1)
+                self.G.node[1]['label'] = '<UNKNOWN>'
+                self.G.node[1]['actors'] = []
+                self.G.node[1]['e_events'] = ['unknownTrigger']
+                self.G.node[1]['triggeredby'] = ['startTrigger']
+                self.G.node[1]['color'] = 'red'
+                self.G.add_edge(0,1)
+            for n in have_known_trigger:
+                if n in self.G.neighbors(1):
+                    self.G.remove_edge(1, n)
+            for n in have_no_trigger:
+                self.G.add_edge(1, n)
+            if plot_needed:
+                self._plot_additional([1])
+            self.refresh()
+        if len(have_no_trigger) == 0 and (1 in self.G.nodes()):
+            print("Removing 1.")
+            self.remove_node(1)
+            self.refresh()
 
     def add_new_behavior(self, statement):
         # Create new graph:
@@ -193,21 +240,6 @@ class dependencyGraphHandler(GraphCanvas, object):
         #self._plot_additional([num_nodes])
         #self.refresh()
     
-
-    def add_dependency(self, name, connections=[]):
-        if self.find_label(name) != None:
-            return
-                
-        self.G.add_node(num_nodes)
-        self.G.node[num_nodes]['label'] = name
-        for name in connections:
-            node = self.find_label(name)
-            if node != None:
-                self.G.add_edge(node, num_nodes)
-        
-        self._plot_additional(self.G.node[num_nodes])
-        self._plot_additional([num_nodes])
-        self.refresh()
 
     def find_label(self, name):
         for n in G.nodes():
