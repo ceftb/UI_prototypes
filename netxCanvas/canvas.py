@@ -154,7 +154,7 @@ class GraphCanvas(tk.Canvas):
         (x,y) = coord
         #if len(self.G) == 1:
         #    return 0
-        print("Pulling data on node %d" % data_node)
+        #print("Pulling data on node %d" % data_node)
         data = self.G.nodes(data=True)[data_node]
         
         for filter_lambda in self._node_filters:
@@ -264,6 +264,8 @@ class GraphCanvas(tk.Canvas):
         self.winfo_toplevel().config(cursor='fleur')
     
     def onPanMotion(self, event):
+        if self._pan_data[0] == None or self._pan_data[1] == None:
+            return
         delta_x = event.x - self._pan_data[0]
         delta_y = event.y - self._pan_data[1]
         self.move(tk.ALL, delta_x, delta_y)
@@ -388,7 +390,7 @@ class GraphCanvas(tk.Canvas):
         item.mark()
     
     def center_on_node(self, data_node):
-        print("CENTERED ON NODE")
+        #print("CENTERED ON NODE")
         try:
             disp_node = self._find_disp_node(data_node)
         except ValueError as e:
@@ -401,7 +403,7 @@ class GraphCanvas(tk.Canvas):
             #    h = int(self['height'])/2
             w = int(int(self.width)/2)
             h = int(int(self.height)/2)
-            print("Moving by %d %d" % (w,h))
+            #print("Moving by %d %d" % (w,h))
             self.move(tk.ALL, w, h+self.yoffset)
             return
         x,y = self.coords(self.dispG.nodes[disp_node]['token_id'])
@@ -602,9 +604,6 @@ class GraphCanvas(tk.Canvas):
     def _graph_changed(self):
         for n, d in self.dispG.nodes(data=True):
             item = d['token']
-            print("Looking for disp and G:")
-            print(n)
-            print(d['G_id'])
             if self.dispG.degree[n] == self.G.degree[d['G_id']]:
                 item.mark_complete()
             else:	
