@@ -51,6 +51,8 @@ class dependencyGraphHandler(GraphCanvas, object):
     added_behaviors = []
     
     def __init__(self, canvas, width=0, height=0, **kwargs):
+        self.node_index = 2
+        self.dummy_node_needed = False
         G = nx.Graph()
         G.add_node(0)
         G.node[0]['label'] = '*'
@@ -59,7 +61,6 @@ class dependencyGraphHandler(GraphCanvas, object):
         G.node[0]['triggeredby'] = []
         G.node[0]['color'] = 'green'
         G.node[0]['circle'] = True
-        #G.add_edge(0,1)
         
         try:
             # Python3
@@ -110,7 +111,9 @@ class dependencyGraphHandler(GraphCanvas, object):
    
     def add_new_node(self, actors, action, e_events, t_events):     
         # Add node to new graph
-        num_nodes = len(self.G)
+        #num_nodes = len(self.G)
+        num_nodes = self.node_index
+        self.node_index = self.node_index + 1
         self.G.add_node(num_nodes)
         self.G.node[num_nodes]['actors'] = list(set(actors))
         try:
@@ -164,7 +167,7 @@ class dependencyGraphHandler(GraphCanvas, object):
                 newdict[Glabel].remove(tup)
                 if len (newdict[Glabel]) == 0:
                     del newdict[Glabel]
-            if not found and n != 0:
+            if not found and n != 0 and n != 1:
                 # Remove node if it's not in our new graph and not our start node.
                 print("REMOVING %s" % (Glabel))
                 remove_nodes.append(n)
@@ -183,12 +186,48 @@ class dependencyGraphHandler(GraphCanvas, object):
             for tup in newdict[label]:
                 # Add this new node to our data graph and plot list.
                 new_id = self.add_new_node(set(tup[2]), label, set(tup[1]), set(tup[0]))
+                print("Adding %s/%d" % (label, new_id)) 
                 new.append(new_id)
 
         if len(new) > 0:
             self._plot_additional(new)
     
-        #self.refresh()
+        print("Plotted addtional")
+    
+        # Check if everything's connected. If not, use self.dummy_node_needed
+        # to trigger needing the <UNKNOWN> trigger node.
+        have_known_trigger = []
+        have_no_trigger = []
+        for n,d in self.G.degree():
+            if n != 1 and n !=0:
+                if d==0 or (1 in self.G.nodes() and d==1 and n in self.G.neighbors(1)):
+                    have_no_trigger.append(n)
+                else:
+                    have_known_trigger.append(n)
+        if len(have_no_trigger) > 0:
+            plot_needed = False
+            if 1 not in self.G.nodes():
+                print("Adding node 1")
+                plot_needed = True
+                self.G.add_node(1)
+                self.G.node[1]['label'] = '<UNKNOWN>'
+                self.G.node[1]['actors'] = []
+                self.G.node[1]['e_events'] = ['unknownTrigger']
+                self.G.node[1]['triggeredby'] = ['startTrigger']
+                self.G.node[1]['color'] = 'red'
+                self.G.add_edge(0,1)
+            for n in have_known_trigger:
+                if n in self.G.neighbors(1):
+                    self.G.remove_edge(1, n)
+            for n in have_no_trigger:
+                self.G.add_edge(1, n)
+            if plot_needed:
+                self._plot_additional([1])
+            self.refresh()
+        if len(have_no_trigger) == 0 and (1 in self.G.nodes()):
+            print("Removing 1.")
+            self.remove_node(1)
+            self.refresh()
 
     def add_new_behavior(self, statement):
         # Create new graph:

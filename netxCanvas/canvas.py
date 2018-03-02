@@ -567,7 +567,9 @@ class GraphCanvas(tk.Canvas):
         existing_data_nodes = set([ v['G_id'] for k,v in self.dispG.node.items() ])
         nodes = set(nodes).union(existing_data_nodes)
         grow_graph = self.G.subgraph(nodes).copy()
-         
+        
+        print(grow_graph)
+        
         fixed = {}
         for n,d in self.dispG.nodes(data=True):
             fixed[d['G_id']] = self.coords(n)
