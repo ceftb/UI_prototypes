@@ -134,6 +134,7 @@ init_width = int(globals.app.appWindow.winfo_screenwidth()*.75)
 init_height = int(globals.app.appWindow.winfo_screenheight()*.75)
 globals.app.topo_canvas.config(width=init_width,height=init_height)
 globals.topo_handler = topoHandler(globals.app.topo_canvas, width=init_width, height=init_height)
+#globals.app.setTextAreaChangeFunction("constraints",globals.topo_handler.process_constraints)
 globals.app.stopTab()
 
 globals.app.stopTabbedFrame()

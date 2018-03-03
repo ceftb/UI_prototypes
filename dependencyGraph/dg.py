@@ -27,13 +27,13 @@ class dgStyle(NodeClass):
     def render(self, data, node_name):
         # Figure out what size the text we want is.
         label_txt = data.get('label', None)
+        font = Font(family="Helvetica", size=12)
+        h = font.metrics("linespace") + 1
+
         if label_txt:
-            font = Font(family="Helvetica", size=12)
-            h = font.metrics("linespace") + 1
             w = font.measure(label_txt) + 2
         else:
-            w=20
-            h=20
+            w = font.measure(".........") + 2
         self.config(width=w, height=h)
         marker_options = {'fill': data.get('color','blue'), 'outline': 'white'}
         
@@ -55,7 +55,7 @@ class dependencyGraphHandler(GraphCanvas, object):
         self.dummy_node_needed = False
         G = nx.Graph()
         G.add_node(0)
-        G.node[0]['label'] = '*'
+        G.node[0]['label'] = ''
         G.node[0]['actors'] = []
         G.node[0]['e_events'] = ['startTrigger', 't0']
         G.node[0]['triggeredby'] = []
@@ -175,10 +175,7 @@ class dependencyGraphHandler(GraphCanvas, object):
         for n in remove_nodes:
             self.remove_node(n)
         if len(remove_nodes) > 0:
-            #XXX TODO this should be a refresh, not a full replot.
             self.refresh()
-            #self.plot(0)
-            #self._plot_additional([0] + self.G.nodes())
         
         new = []
         for label in newdict:

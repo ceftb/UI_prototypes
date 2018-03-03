@@ -55,8 +55,11 @@ class GraphCanvas(tk.Canvas):
         
         home_node = kwargs.pop('home_node', None)
         if home_node:
+            print("HOME NODE IS: %s" % str(home_node))
             levels = kwargs.pop('levels', 1)
             graph = self._neighbors(home_node, levels=levels, graph=graph)
+        else:
+            home_node = 0
         
         self._NodeClass = kwargs.pop('NodeClass', NodeClass)
         self._EdgeClass = kwargs.pop('EdgeClass', EdgeClass)
@@ -73,7 +76,7 @@ class GraphCanvas(tk.Canvas):
         self.y0 = self.winfo_rooty()
         #print("(0,0) at (%d,%d)" % (self.x0, self.y0))
         
-        self._plot_graph(graph)
+        self._plot_graph(graph, home_node=home_node)
         self.center_on_node(home_node or graph.nodes()[0])
         
         # Add bindings for clicking.
@@ -368,7 +371,10 @@ class GraphCanvas(tk.Canvas):
     
     def remove_node(self, data_node_id):	
         # Remove it from our data graph
-        self.G.remove_node(data_node_id)
+        try:
+            self.G.remove_node(data_node_id)
+        except nx.NetworkXError as e:
+            print("WARNING: Cannot remove node %s: %s" % (data_node_id, e))
         
         # Find the disp_node id.
         for n in self.dispG:
@@ -545,7 +551,7 @@ class GraphCanvas(tk.Canvas):
                 for key, value in self.dispG.edge[u_disp][v_disp].items():
                     self.mark_edge(u_disp, v_disp, key)
     
-    def _plot_graph(self, graph):
+    def _plot_graph(self, graph, home_node=0):
         scale = int(min(self.width, self.height))
         if scale < 2:
             scale = min(self.winfo_width(), self.winfo_height())
@@ -556,7 +562,7 @@ class GraphCanvas(tk.Canvas):
             for n in graph.nodes():
                 self._draw_node(layout[n]+20, n)
         else:
-            self._draw_node((scale/2, scale/2), 0)
+            self._draw_node((scale/2, scale/2), home_node)
         
         for fm, to in set(graph.edges()):
             self._draw_edge(fm, to)
