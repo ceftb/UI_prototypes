@@ -55,7 +55,7 @@ class topoHandler(GraphCanvas, object):
 
         try:
             # Python 3
-            super().__init__(G, master=canvas, width=width, height=height, NodeClass=topoStyle,**kwargs)
+            super().__init__(G, master=canvas, width=width, height=height, NodeClass=topoStyle,home_node = 'lan0', **kwargs)
         except TypeError:
             # Python 2
             super(topoHandler, self).__init__(G, master=canvas, width=width, height=height, NodeClass=topoStyle, home_node = 'lan0', **kwargs)
