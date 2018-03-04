@@ -33,15 +33,15 @@ class dgStyle(NodeClass):
         if label_txt:
             w = font.measure(label_txt) + 2
         else:
-            w = font.measure(".........") + 2
+            w = font.measure("....") + 2
         self.config(width=w, height=h)
         marker_options = {'fill': data.get('color','blue'), 'outline': 'white'}
         
         if data.get('circle', None):
-            self.create_oval(0,0,w*3,w*3, **marker_options)
-            self.config(width=w*3, height=w*3)
+            self.create_oval(0,0,w,h, **marker_options)
+            self.config(width=w, height=h)
             if label_txt:
-                self.create_text(w*3/2, w*3/2, text=label_txt, font=font, fill="white")
+                self.create_text(w/2, h/2, text=label_txt, font=font, fill="white")
         else:
             self.create_rectangle(0,0,w,h, **marker_options)
             if label_txt:
