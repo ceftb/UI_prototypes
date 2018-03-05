@@ -1,8 +1,8 @@
 import re
 import sys
-from hlb_parser import HLBParser, HLBHintType
 
 sys.path.append('../')
+from HighLevelBehaviorLanguage.hlb_parser import HLBParser, HLBHintType
 import globals
 try:
     from tkinter import filedialog
@@ -616,17 +616,17 @@ def processBehavior():
             i = i + 1
             
             type,vals,hints = parser.extract_partial(b)
-            print type, vals, hints
-            if "actors" in vals:
+            #print type, vals, hints
+            if "actors" in vals and vals["actors"] != None:
                 for a in vals["actors"]:
                     if a not in globals.actors:
                         addactor(a)
 
-            if "action" in vals:
+            if "action" in vals and vals["action"] != None:
                 a=vals["action"]
                 if a not in globals.actions:
                     globals.actions[a] = 1
-                    print "added action ",a
+                    print("added action %s" % a)
 
             if "e_events" in vals and vals["e_events"] != None:
                 for a in vals["e_events"]:
@@ -636,7 +636,7 @@ def processBehavior():
         # Go through last behavior line to see what is the current state
         # start (waitd, wait) or (whene, when) or actor, actor, action, method, emit, done
         type,vals,hints = parser.extract_partial(ll)                        
-        print type,vals,hints
+        #print type,vals,hints
         if (type == HLBHintType.BLANK):
             addSuggestions("behaviors_enter", Bentry)
         elif(type == HLBHintType.REQ_WHEN_LIST):

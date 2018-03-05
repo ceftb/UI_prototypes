@@ -39,7 +39,7 @@ class HLBParser():
     hlb_statement = (trigger + wsp + actors("actors") + wsp + action("action") + emit_keyword + events("e_events") 
                     |trigger + wsp + actors("actors") + wsp + action("action") 
                     | actors("actors") + wsp + action("action") + emit_keyword + events("e_events")
-                    | actors("actors") + wsp + action("action")) 
+                    | actors("actors") + wsp + action("action")) + LineEnd()
     
     parts_of_when = (CaselessKeyword("w").suppress() | CaselessKeyword("wh").suppress() | CaselessKeyword("whe").suppress()) + LineEnd()
     parts_of_wait = (CaselessKeyword("w").suppress() | CaselessKeyword("wa").suppress() | CaselessKeyword("wai").suppress()) + LineEnd()
@@ -123,7 +123,7 @@ class HLBParser():
             return rval
 
     def extract_partial(self, partial):
-        print "Parsing ",partial
+        #print("Parsing \'%s\'" % partial)
         if len(partial.strip().split()) == 0:
             return(HLBHintType.BLANK,  self.new_return_dict(), ['WHEN', 'WAIT', '<ACTOR>'])
         t_events, actors, action, e_events, wait_time = self.parse_stmt(partial)
@@ -133,9 +133,10 @@ class HLBParser():
         except TypeError:
             action = str(action)
         if actors != None and e_events != None:
-            #print("Complete statement. Suggetion: Can add emit events.")
+            #print("Complete statement with emit.")
             return(HLBHintType.NO_HINT, self.new_return_dict(t_events=t_events, actors=actors, action=action, e_events=e_events, wait_time=wait_time), []) 
-        elif actors != None:
+        elif actors != None and e_events == None:
+            #print("Complete statement, with no emit.")
             hint_list = ['EMIT ' + action +'Signal', 'EMIT'] 
             return(HLBHintType.OPT_EMIT_STMT, self.new_return_dict(t_events=t_events, actors=actors, action=action, wait_time=wait_time), hint_list) 
         
@@ -153,7 +154,7 @@ class HLBParser():
             try:
                 parsed = self.hlb_missing_emit_list.parseString(partial)
                 #print("Missing emit list.")
-                hint_list = [parsed.action+'Signal', '<LIST, OF, TRIGGERS>']
+                hint_list = [action+'Signal', '<LIST, OF, TRIGGERS>']
                 return(HLBHintType.REQ_EMIT_LIST, self.new_return_dict(t_events=parsed.t_events, actors=parsed.actors, action=parsed.action, wait_time=parsed.wait_time), hint_list)
             except ParseException as pe:
                 pass
