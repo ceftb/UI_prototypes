@@ -86,6 +86,9 @@ def save_docker(f):
     # decide on lan IPs
     nets = dict()
     nc = 0
+
+    lls = dict()
+
     savelinks = globals.links.keys()
     for a in savelinks:
         for b in globals.links[a]:
@@ -97,12 +100,18 @@ def save_docker(f):
             globals.addresses[a][add1+".1"] = 1
             if b not in globals.links:
                 globals.links[b] = dict()
-            globals.links[b][a] = add1
+            globals.links[b][a] = add1 
             nets[add1] = 2
             if b not in globals.addresses:
                 globals.addresses[b] = dict()
             globals.addresses[b][add1 + ".2"] = 1
             nc += 1
+            if a not in lls:
+                lls[a] = dict()
+            lls[a][b] = add1+".1"
+            if b not in lls:
+                lls[b] = dict()
+            lls[b][a] = add1+".2"
 
     for l in globals.lans:
         lc = 1
@@ -121,8 +130,11 @@ def save_docker(f):
         f.write("\n "+a+":\n  build:\n   dockerfile: custom.dock\n   context: .\n  command: /bin/setroutes.pl\n  privileged: true\n  networks:\n")
         if a in globals.links:
             for b in globals.links[a]:
-                f.write("   link-" + a + "-" + b + ":\n    ipv4_address: " + globals.links[a][b] + "." + str(nets[globals.links[a][b]]) + "\n")
-                nets[globals.links[a][b]] += 1
+                if (re.search(r".1$",lls[a][b]) != None):
+                    name = "link-"+a+"-"+b
+                else:
+                    name = "link-"+b+"-"+a
+                f.write("   " + name + ":\n    ipv4_address: " + lls[a][b] + "\n")
 
         for l in globals.lans:
             if a in globals.lans[l]:
@@ -132,7 +144,7 @@ def save_docker(f):
     f.write("\n\nnetworks:\n")
     for a in globals.links:
         for b in globals.links[a]:
-            if (nets[globals.links[a][b]] == 1):
+            if (re.search(r".1$",lls[a][b]) != None):
                 f.write(" link-" + a + "-" + b + ":\n  driver: bridge\n  ipam:\n   driver: default\n   config:\n   -\n     subnet: "+globals.links[a][b]+".0/24\n\n")
 
             
