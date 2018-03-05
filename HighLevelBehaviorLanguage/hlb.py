@@ -18,6 +18,11 @@ except ImportError:
 def press(button):
     print(button)
 
+def same_pref(a,b):
+    i = a[0:a.rfind(".")]
+    j = b[0:b.rfind(".")]
+    print "SP comparing ",i," and ",j, " result is ",(i==j)
+    return (i == j)
 
 def save_routes():
     routes = dict()
@@ -64,21 +69,25 @@ def save_routes():
         if updates == 0:
             break
 
-        f = open("setup.txt", "w")
+    f = open("setup.txt", "w")
 
-        for a in globals.addresses:
-            print("Node %s" % a)
-            for b in globals.addresses[a]:
-                print("From %s add %s" % (a,b))
-                f.write("address "+a+" "+b+"\n")
+    for a in globals.addresses:
+        print "Node ",a
+        for b in globals.addresses[a]:
+            print "From ",a," add ",b
+            f.write("address "+a+" "+b+"\n")
 
-        for a in routes:
-            for b in routes[a]:
-                if routes[a][b]['h'] > 1:
-                    c = routes[a][b]['n']
-                    for i in globals.addresses[a]:
-                        for j in globals.addresses[b]:
-                            f.write("route "+i+" "+j + " "+str(routes[a][b]['n'])+"\n")
+    for a in routes:
+        for b in routes[a]:
+            if routes[a][b]['h'] > 1:
+                c = routes[a][b]['n']
+                for i in globals.addresses[a]:
+                    for j in globals.addresses[b]:
+                        c = routes[a][b]['n']
+                        for k in globals.addresses[c]:
+                            if same_pref(k,i):
+                                f.write("route "+i+" "+j + " "+k+"\n")
+                                break
         
 
 
@@ -91,35 +100,39 @@ def save_docker(f):
 
     savelinks = globals.links.keys()
     for a in savelinks:
+        print "Saving node ",a
         for b in globals.links[a]:
             add1 = "172.1." + str(nc)
             globals.links[a][b] = add1
             nets[add1] = 1            
             if a not in globals.addresses:
                 globals.addresses[a] = dict()
-            globals.addresses[a][add1+".1"] = 1
+                print "Added node ",a
+            globals.addresses[a][add1+".3"] = 1
             if b not in globals.links:
                 globals.links[b] = dict()
             globals.links[b][a] = add1 
             nets[add1] = 2
             if b not in globals.addresses:
                 globals.addresses[b] = dict()
-            globals.addresses[b][add1 + ".2"] = 1
+                print "Added node ",b
+            globals.addresses[b][add1 + ".4"] = 1
             nc += 1
             if a not in lls:
                 lls[a] = dict()
-            lls[a][b] = add1+".1"
+            lls[a][b] = add1+".3"
             if b not in lls:
                 lls[b] = dict()
-            lls[b][a] = add1+".2"
+            lls[b][a] = add1+".4"
 
     for l in globals.lans:
-        lc = 1
+        lc = 3
         for i in globals.lans[l]:
             add1 = "172.1." + str(nc) + "." + str(lc)
             globals.lans[l][i] = add1
             if i not in globals.addresses:
                 globals.addresses[i] = dict()
+                print "Added node ",i
             globals.addresses[i][add1] = 1
             lc += 1
         nets[l] = "172.1." + str(nc)
@@ -130,7 +143,7 @@ def save_docker(f):
         f.write("\n "+a+":\n  build:\n   dockerfile: custom.dock\n   context: .\n  command: /bin/setroutes.pl\n  privileged: true\n  networks:\n")
         if a in globals.links:
             for b in globals.links[a]:
-                if (re.search(r".1$",lls[a][b]) != None):
+                if (re.search(r".3$",lls[a][b]) != None):
                     name = "link-"+a+"-"+b
                 else:
                     name = "link-"+b+"-"+a
@@ -144,7 +157,7 @@ def save_docker(f):
     f.write("\n\nnetworks:\n")
     for a in globals.links:
         for b in globals.links[a]:
-            if (re.search(r".1$",lls[a][b]) != None):
+            if (re.search(r".3$",lls[a][b]) != None):
                 f.write(" link-" + a + "-" + b + ":\n  driver: bridge\n  ipam:\n   driver: default\n   config:\n   -\n     subnet: "+globals.links[a][b]+".0/24\n\n")
 
             
