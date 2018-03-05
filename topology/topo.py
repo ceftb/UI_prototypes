@@ -7,12 +7,13 @@ try:
     import tkinter as tk
     import tkinter.messagebox as tkm
     import tkinter.simpledialog as tkd
+    from tkinter.font import Font
 except ImportError:
     # Python 2
     import Tkinter as tk
     import tkMessageBox as tkm
     import tkSimpleDialog as tkd
-
+    from tkFont import Font
 
 sys.path.append("..")
 
@@ -23,70 +24,169 @@ from netxCanvas.style import NodeClass
 
 class topoStyle(NodeClass):
     def render(self, data, node_name):
-        self.config(width=10, height=10)
-        marker_options = {'fill': data.get('color','red'), 'outline':    'black'}
-        
-        if data.get('circle', None):
-            self.create_oval(0,0,10,10, **marker_options)
+        label_txt = data.get('label', None)
+        font = Font(family="Helvetica", size=12)
+        h = font.metrics("linespace") + 2
+        if label_txt:
+            w = font.measure(label_txt) + 4
         else:
-            self.create_rectangle(0,0,10,10, **marker_options)
+            w = font.measure("....") + 2
+        self.config(width=w, height=h)
+        marker_options = {'fill': data.get('color','orange'), 'outline': 'white'}
+            
+        if data.get('circle', False) or data.get('type', 'NOTLAN') == 'LAN':
+            self.create_oval(0,0,w,h, **marker_options)
+            self.config(width=w, height=h)
+            if label_txt:
+                self.create_text(w/2, h/2, text=label_txt, font=font, fill="white")
+        else:
+            self.create_rectangle(0,0,w,h, **marker_options)
+            if label_txt:
+                self.create_text(w/2, h/2, text=label_txt, font=font, fill="white")
 
 class topoHandler(GraphCanvas, object):
     def __init__(self, canvas, width=0, height=0, **kwargs):
+        self.node_index = 1
         G = nx.Graph()
    
-        G.add_node(0, label='lan0')
-        #G.add_edge(0,1)
-        #G.add_edge(0,2)
-        #G.add_edge(0,3)
+        G.add_node('lan0', label='lan0')
+        G.node['lan0']['label'] = 'lan0'
+        G.node['lan0']['type'] = 'LAN'
 
-        G.node[0]['circle'] = True
-        G.node[0]['color'] = 'green'
-        G.node[0]['label'] = 'lan0'
-        #G.node[1]['color'] = 'blue'
         try:
             # Python 3
-            super().__init__(G, master=canvas, width=width, height=height, NodeClass=topoStyle, **kwargs)
+            super().__init__(G, master=canvas, width=width, height=height, NodeClass=topoStyle,home_node = 'lan0', **kwargs)
         except TypeError:
             # Python 2
-            super(topoHandler, self).__init__(G, master=canvas, width=width, height=height, NodeClass=topoStyle, **kwargs)
+            super(topoHandler, self).__init__(G, master=canvas, width=width, height=height, NodeClass=topoStyle, home_node = 'lan0', **kwargs)
         self.pack()
     
     def setoffsets(self, xoffset=0, yoffset=0):
         self.xoffset = xoffset
         self.yoffset = yoffset
     
-    def find_label(self, name):
-        labels = nx.get_node_attributes(self.G, 'label')
-        try:
-            for key, value in labels.iteritems():
-                if name == value:
-                    return key
-        except (SyntaxError, AttributeError) as e:
-            for key, value in labels.items():
-                if name == value:
-                    return key
-        return None
-        
-    def add_entity(self, name, connections=['lan0']):
-        # XXX TODO have to add support for deletions.
 
-        if self.find_label(name) != None:
-            return
+    def process_constraints(self):
+        print("Process constraints. NODES LIST:")
+        print(globals.nodes)
+        new_nodes = []
+        new_lans = []
+        remove_nodes = []
         
-        num_nodes = len(self.G)
-        print("Now have %d nodes." % (len(self.G)))
-        self.G.add_node(num_nodes)
-        self.G.node[num_nodes]['label'] = name
-        for name in connections:
-            node = self.find_label(name)
-            if node != None:
-                self.G.add_edge(node, num_nodes)
+        # First, check what we have, and remove nodes and lans
+        # that are no longer in the constraint lists.
+        for n in self.G.nodes():
+            if n not in globals.nodes and n not in globals.lans:
+                print("Topo: Removing node: %s" % str(n))
+                remove_nodes.append(n)
+            else:
+                # If the type has changed (a node is now a lan or vise versa) 
+                # just remove and add again.
+                if 'type' not in self.G.nodes(data=True)[n]:
+                    print("WARNING: Topo data graph has node %s, but no type for it." % n)
+                    continue
+                if n in globals.nodes:
+                    print(n) 
+                    if self.G.nodes(data=True)[n]['type'] == 'LAN':
+                        remove_nodes.append(n)
+                        new_nodes.append(n)
+                elif n in globals.lans:
+                    if self.G.nodes(data=True)[n]['type']  == 'NODE':
+                        remove_nodes.append(n)
+                        new_lans.append(n)
+                    
+        for n in remove_nodes:
+            self.remove_node(n)
+        #if len(remove_nodes) > 0:
+        #    self.refresh()
+            
+        # Add nodes and lans we don't yet have.
+        for n in globals.nodes:
+            if n not in self.G.nodes():
+                new_nodes.append(n)
+        for n in new_nodes:
+            self.G.add_node(n)
+            self.G.nodes[n]['label'] = str(n)
+            self.G.nodes[n]['type'] = 'NODE'
+        for l in globals.lans:
+            if l not in self.G.nodes():
+                new_lans.append(l)
+        for l in new_lans:
+            self.G.add_node(l)
+            self.G.nodes[l]['label'] = str(l)
+            self.G.nodes[l]['type'] = 'LAN'
+        
+        
+        # Be sure our graph dosn't have connections that no longer exist.
+        remove_edges = []
+        add_back = []
+        for edge in self.G.edges():
+            if not self._islinked(edge[0], edge[1]):
+                remove_edges.append(edge)
+        for edge in remove_edges:
+            print("Node %s and %s are no longer connected." % (edge[0], edge[1]))
+            try:
+                self.G.remove_edge(edge[0], edge[1])
+            except NetworkXError:
+                try:
+                    self.G.remove_edge(edge[1], edge[0])
+                except NetworkXError:
+                    pass
+            # XXX Not clear why removing the edge doesn't do the trick!
+            for n in edge:
+                data = self.G.nodes(data=True)[n]
+                self.remove_node(n)
+                add_back.append(n)
+        for n in add_back:
+            self.G.add_node(n)
+            self.G.nodes[n]['label'] = str(n)
+            if n in globals.lans:	
+                self.G.nodes[n]['type'] = 'LAN'
+            else:
+                self.G.nodes[n]['type'] = 'NODE'
+            
+        # Go through all links and lans and be sure everything is connected.
+        for l in globals.lans:
+            for x in globals.lans[l]:
+                self._connect(x, l)
+        for l in globals.links:
+            for x in globals.links[l]:
+                self._connect(x, l)
+        
 
-        self._plot_additional(self.G.node[num_nodes])
-        self._plot_additional([num_nodes])
-        self.refresh()
+        #new = new_lans + new_nodes + add_back
+        new = [ n for n in self.G.nodes()]
+        if len(new) > 0:
+            print("Doing plot update for:")
+            print(new)
+            self._plot_additional(new)
+        
+        print("Doing a topo graph refresh.")
+        self.refresh()        
+        
+
+    def _islinked(self, n1, n2):
+        # Checks if our globals links and lans list these as connected parties.
+        if n1 in globals.lans and n2 in globals.lans[n1]:
+            return True
+        if n2 in globals.lans and n1 in globals.lans[n2]:
+            return True
+        if n1 in globals.links and n2 in globals.links[n1]:
+            return True
+        if n2 in globals.links and n1 in globals.links[n2]:
+            return True
+        return False
+                
+                
+    def _connect(self, n1, n2):
+        if n1 in self.G.nodes() and n2 in self.G.nodes():
+            if n1 not in self.G.neighbors(n2):	
+                self.G.add_edge(n1, n2)
+            print("Node %s and %s should be connected." % (n1, n2))
+        else:
+            print("WARNING: Asked to link %s and %s in topology graph, but one of these is not in our graph data." %(n1,n2)) 
     
+        
     def save(self, f):
         l=0
         lans=dict()

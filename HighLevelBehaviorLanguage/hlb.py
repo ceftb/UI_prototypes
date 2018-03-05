@@ -67,9 +67,9 @@ def save_routes():
         f = open("setup.txt", "w")
 
         for a in globals.addresses:
-            print "Node ",a
+            print("Node %s" % a)
             for b in globals.addresses[a]:
-                print "From ",a," add ",b
+                print("From %s add %s" % (a,b))
                 f.write("address "+a+" "+b+"\n")
 
         for a in routes:
@@ -260,7 +260,7 @@ def gather_bindings():
     globals.app.showSubWindow("Dialogue")
 
 def entryFunc(entry):
-    print "Changed ",entry
+    print("Changed %s" % entry)
 
 def tbFunc(button):
     print(button)
@@ -488,7 +488,7 @@ def processConstraints():
             for b in globals.lans[a]:
                 lanstring += (b+ " ")
             print("Lan %s:%s" %( a,lanstring))
-            
+        globals.topo_handler.process_constraints()
 
 def transitionBstate(ll):
 
@@ -679,7 +679,7 @@ def processBehavior():
 
         
         
-        print text
+        print(text)
         globals.app.stopLabelFrame()
 
 def regenerateSuggestions(evtype):
@@ -732,7 +732,6 @@ def left(widget):
                 print("Added actor %s" % r)
                 # Update topology 
                 print("Updating topology.")
-                globals.topo_handler.add_entity(r)
 
     if (widget == "behavior"):
         text = globals.app.getTextArea("behavior")

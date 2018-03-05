@@ -111,6 +111,7 @@ if NLPFLAG:
     from NLP.nlp import nlpHandler
     globals.nlp_handler = nlpHandler()
     globals.app.addScrolledTextArea("NLP Input")
+    globals.app.setTextArea("NLP Input",globals.nlp_help_str)
     globals.app.setTextAreaChangeFunction("NLP Input",globals.nlp_handler.nlpChanged)
 globals.app.stopTab()
 
@@ -133,6 +134,7 @@ init_width = int(globals.app.appWindow.winfo_screenwidth()*.75)
 init_height = int(globals.app.appWindow.winfo_screenheight()*.75)
 globals.app.topo_canvas.config(width=init_width,height=init_height)
 globals.topo_handler = topoHandler(globals.app.topo_canvas, width=init_width, height=init_height)
+#globals.app.setTextAreaChangeFunction("constraints",globals.topo_handler.process_constraints)
 globals.app.stopTab()
 
 globals.app.stopTabbedFrame()
