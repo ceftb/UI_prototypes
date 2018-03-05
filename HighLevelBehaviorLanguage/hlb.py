@@ -1,5 +1,7 @@
 import re
 import sys
+from hlb_parser import HLBParser, HLBHintType
+
 sys.path.append('../')
 import globals
 try:
@@ -21,7 +23,6 @@ def press(button):
 def same_pref(a,b):
     i = a[0:a.rfind(".")]
     j = b[0:b.rfind(".")]
-    print "SP comparing ",i," and ",j, " result is ",(i==j)
     return (i == j)
 
 def save_routes():
@@ -72,9 +73,7 @@ def save_routes():
     f = open("setup.txt", "w")
 
     for a in globals.addresses:
-        print "Node ",a
         for b in globals.addresses[a]:
-            print "From ",a," add ",b
             f.write("address "+a+" "+b+"\n")
 
     for a in routes:
@@ -100,14 +99,12 @@ def save_docker(f):
 
     savelinks = globals.links.keys()
     for a in savelinks:
-        print "Saving node ",a
         for b in globals.links[a]:
             add1 = "172.1." + str(nc)
             globals.links[a][b] = add1
             nets[add1] = 1            
             if a not in globals.addresses:
                 globals.addresses[a] = dict()
-                print "Added node ",a
             globals.addresses[a][add1+".3"] = 1
             if b not in globals.links:
                 globals.links[b] = dict()
@@ -115,7 +112,6 @@ def save_docker(f):
             nets[add1] = 2
             if b not in globals.addresses:
                 globals.addresses[b] = dict()
-                print "Added node ",b
             globals.addresses[b][add1 + ".4"] = 1
             nc += 1
             if a not in lls:
@@ -132,7 +128,6 @@ def save_docker(f):
             globals.lans[l][i] = add1
             if i not in globals.addresses:
                 globals.addresses[i] = dict()
-                print "Added node ",i
             globals.addresses[i][add1] = 1
             lc += 1
         nets[l] = "172.1." + str(nc)
@@ -316,21 +311,18 @@ def addSuggestions(evtype, pb):
     globals.app.openLabelFrame("Suggestions")
     if evtype == "actors_only":
         for a in globals.actors:
-            if a != "":
+            if a != "" and a not in globals.sbuttons:
                 print("add actor %s" % a)
                 globals.sbuttons[a] = 1
                 globals.app.addButton(a, pb)
     elif evtype == "actions_only":
         for a in globals.actions:
-            if a != "":
+            if a != "" and a not in globals.sbuttons:
                 print("add action %s" % a)
                 globals.sbuttons[a] = 1
                 globals.app.addButton(a, pb)
     elif evtype == "methods_only":
-        for a in globals.methods:
-            if a != "":
-                globals.sbuttons[a] = 1
-                globals.app.addButton(a, pb)
+        pass
     elif evtype == "events_only":
         for e in globals.events:
             if e != "":
@@ -464,7 +456,6 @@ def processConstraints():
         ll = chs.pop()
         items = re.split("[\s,]",ll.strip())
         item = items.pop(0)
-        print("Len %d item %s"%(len(items),item))
         if item in ["num", "os","nodetype", "interfaces", "location", "link","lan"] and len(items) == 0:
             addSuggestions("actors_only", Centry)
         elif len(items) >= 1:
@@ -601,7 +592,6 @@ def addactor(item):
         delim="\n"
     globals.app.setTextArea("actor", delim+item, True, True)
     
-    
 
 def processBehavior():
         #print("Entered behavior")
@@ -614,85 +604,70 @@ def processBehavior():
         globals.slabels.clear()
         text = globals.app.getTextArea("behavior")
 
-        # first capitalize keywords, perhaps remove this
-        text = text.replace("when","WHEN")
-        text = text.replace("wait","WAIT")
-        text = text.replace("emit","EMIT")
-
         bhs = text.split("\n")
         i=0
         # parse out events, globals.actors, actions and methods
         # from every line but the last
         globals.events.clear()
         ll = bhs.pop()
+        parser = HLBParser()
         for b in bhs:
             globals.behaviors[i] = b
             i = i + 1
-            items = re.split("[\s,]",b.strip())
-            # parse out events
-            fa = 0
-            fe = 0
-            d = 0
-            for item in items:
-                if item in globals.actors:
-                    fa = 1
-                    continue
-                if (item == "emit"):
-                    fe = 1
-                    continue
-                if (fa == 1):
-                    d = d+1
-                    if (d == 1):
-                        globals.actions[item] = 1
-                        continue
-                    elif (d == 2):
-                        globals.methods[item] = 1
-                        continue
-                if (fe == 1):
-                    globals.events[item] = 1
+            
+            type,vals,hints = parser.extract_partial(b)
+            print type, vals, hints
+            if "actors" in vals:
+                for a in vals["actors"]:
+                    if a not in globals.actors:
+                        addactor(a)
+
+            if "action" in vals:
+                a=vals["action"]
+                if a not in globals.actions:
+                    globals.actions[a] = 1
+                    print "added action ",a
+
+            if "e_events" in vals and vals["e_events"] != None:
+                for a in vals["e_events"]:
+                    if a not in globals.events:
+                        globals.events[a] = 1
+
         # Go through last behavior line to see what is the current state
         # start (waitd, wait) or (whene, when) or actor, actor, action, method, emit, done
-        globals.bstate = transitionBstate(ll)
-        print("State %s" % (globals.bstate))
-
-        if (globals.bstate == "start"):
+        type,vals,hints = parser.extract_partial(ll)                        
+        print type,vals,hints
+        if (type == HLBHintType.BLANK):
             addSuggestions("behaviors_enter", Bentry)
-        elif(globals.bstate == "whene"):
-            addSuggestions("enter event name", Bentry)
-            addSuggestions("events_only", Bentry)
-        elif(globals.bstate == "when"):
+        elif(type == HLBHintType.REQ_WHEN_LIST):
+             addSuggestions("enter event name", Bentry)
+             addSuggestions("events_only", Bentry)
+        elif(type == HLBHintType.REQ_ACTORS_HAVEWHEN):
             addSuggestions("when_enter", Bentry)
-        elif(globals.bstate == "waitd"):
+        elif(type == HLBHintType.REQ_WAIT_TIME):
             addSuggestions("enter variable name or wait time in second", Bentry)
-        elif(globals.bstate == "wait"):
+        elif(type == HLBHintType.REQ_ACTORS):
             addSuggestions("actors_only", Bentry)
-        elif(globals.bstate == "actor" or globals.bstate == "nactor"):
-            if (globals.bstate == "nactor"):
+        elif(type == HLBHintType.REQ_ACTION):
+            if (ll.endswith(" ")):
                 items = ll.strip().split(" ")
                 item = items[-1].strip(",")
-                addactor(item)
+                if item not in globals.actors:
+                    addactor(item)
             addSuggestions("enter action", Bentry)
             addSuggestions("actions_only", Bentry)
             addSuggestions("actors_only", Bentry)
-        elif(globals.bstate == "action" or globals.bstate == "method" or globals.bstate == "naction" or globals.bstate == "nmethod"):
-            items = ll.strip().split(" ")
-            if (globals.bstate == "naction"):
-                globals.actions[items[-1]] = 1
-            addSuggestions("enter method", Bentry)
-            addSuggestions("methods_only", Bentry)
-            if (globals.bstate == "nmethod"):
+        elif(type == HLBHintType.OPT_EMIT_STMT):
+            if (ll.endswith(" ")):
+                items = ll.strip().split(" ")
                 item = items[-1].strip(",")
-                globals.methods[item] = 1
-            if (globals.bstate == "nmethod" or globals.bstate == "method"):
-                addSuggestions("emit", Bentry)
-        elif (globals.bstate == "emit"):
-            addSuggestions("enter event name", Bentry)
-        elif (globals.bstate == "emitted"):
-            addSuggestions("enter event name", Bentry)
+                if item not in globals.actions:
+                    globals.actions[item] = 1
 
-        
-        
-        print(text)
+            addSuggestions("emit", Bentry)
+        elif (type == HLBHintType.REQ_EMIT_LIST):
+            addSuggestions("enter event name(s)", Bentry)
+
         globals.app.stopLabelFrame()
 
 def regenerateSuggestions(evtype):
@@ -754,16 +729,16 @@ def left(widget):
         for b in bhs:
             globals.behaviors[i] = b
             i = i + 1
-            items = b.split(" ")
-            # parse out events
-            prev = ""
-            for item in items:
-                if (item == "emit"):
-                    prev = item
-                    continue
-                if (prev == "emit"):
-                    globals.events[item] = 1
-                prev = item
+#            items = b.split(" ")
+#            # parse out events
+#            prev = ""
+#            for item in items:
+#                if (item == "emit"):
+#                    prev = item
+#                    continue
+#                if (prev == "emit"):
+#                    globals.events[item] = 1
+#                prev = item
             globals.bdg_handler.add_new_behavior(b)
 
 def entered(widget):

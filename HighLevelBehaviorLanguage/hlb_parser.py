@@ -123,6 +123,7 @@ class HLBParser():
             return rval
 
     def extract_partial(self, partial):
+        print "Parsing ",partial
         if len(partial.strip().split()) == 0:
             return(HLBHintType.BLANK,  self.new_return_dict(), ['WHEN', 'WAIT', '<ACTOR>'])
         t_events, actors, action, e_events, wait_time = self.parse_stmt(partial)

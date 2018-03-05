@@ -16,7 +16,7 @@ behaviors=dict()
 constraints=dict()
 events=dict()
 actions=dict()
-methods=dict()
+
 
 nodes=dict()
 links=dict()
