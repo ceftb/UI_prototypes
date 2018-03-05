@@ -605,8 +605,8 @@ class GraphCanvas(tk.Canvas):
         for n, m in set(grow_graph.edges()):
             if(n in existing_data_nodes) and (m in existing_data_nodes):
                 continue
-            
             self._draw_edge(n, m)
+            
         self._graph_changed()
     
     def _graph_changed(self):
@@ -615,6 +615,9 @@ class GraphCanvas(tk.Canvas):
             if self.dispG.degree[n] == self.G.degree[d['G_id']]:
                 item.mark_complete()
             else:	
+                print("NOT COMPLETE")
+                for n in nx.all_neighbors(self.G, d['G_id']):
+                    self._draw_edge(n, d['G_id'])
                 item.mark_incomplete()
     
     def _find_disp_node(self, data_node):
