@@ -616,7 +616,8 @@ def processBehavior():
             i = i + 1
             
             type,vals,hints = parser.extract_partial(b)
-            #print type, vals, hints
+            print type, vals, hints
+
             if "actors" in vals and vals["actors"] != None:
                 for a in vals["actors"]:
                     if a not in globals.actors:
